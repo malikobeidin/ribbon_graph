@@ -23,9 +23,9 @@ class RibbonGraph():
                     cycle.append(positions.index((n,m))+1)
                 next_list.append(cycle)
 
-            opposite = Permutation(cycles = map(tuple,opposite_list))
-            next = Permutation(cycles = map(tuple,next_list))
-            
+            opposite = Permutation(dictionary={},cycles = opposite_list)
+            next = Permutation(dictionary={},cycles = next_list)
+
         else:
             pass
         assert len(opposite) % 2 == 0
