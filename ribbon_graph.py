@@ -1,7 +1,11 @@
 from sage.all import PermutationGroup
-from permutation import Permutation
-class RibbonGraph():
-    def __init__(self, opposite, next, PD = []):
+from permutation import Permutation, Bijection, random_permutation
+from spherogram.links.random_links import map_to_link, random_map
+
+class RibbonGraph(object):
+    def __init__(self, permutations=[], PD = []):
+        if permutations:
+            opposite, next = permutations
         if PD:
             edge_dict = {}
             for n,v in enumerate(PD):
@@ -26,23 +30,80 @@ class RibbonGraph():
             opposite = Permutation(dictionary={},cycles = opposite_list)
             next = Permutation(dictionary={},cycles = next_list)
 
-        else:
-            pass
-        assert len(opposite) % 2 == 0
-        assert len(next) == len(opposite)
         self.opposite = opposite
-        self.next = next
+        self.next = next        
         self.next_corner = self.opposite * self.next
 
+        
+    def __repr__(self):
+        return "RibbonGraph with {} half-edges".format(self.size())
+        
+    def _vertex_search(self, label):
+        """
+        Starting with an oriented half edge label, perform a breadth first
+        search of all the vertices to give a canonical ordering of the vertices
+        and a choice of oriented half edge for each vertex
+        """
+        all_seen_edges = set()
+        first_edges = []
+        stack = []
+        stack.append(label)
+        num_labels = self.size()
+        while stack and len(all_seen_edges) < num_labels:
+            oriented_edge = stack.pop()
+            if oriented_edge not in all_seen_edges:
+                first_edges.append(oriented_edge)
+                
+                for label in self.vertex(oriented_edge):
+                    all_seen_edges.add(label)
+
+                    stack.append(self.opposite[label])
+
+        return first_edges
+
+    def _relabeling_bijection(self, label):
+        i = 1
+        bij = {}
+        for oriented_edge in self._vertex_search(label):
+            for e in self.vertex(oriented_edge):
+                bij[e]=i
+                i += 1
+        return Bijection(bij)
+
+    def relabeled_by_root(self, label):
+        bij = self._relabeling_bijection(label)
+        new_op = self.opposite.relabeled(bij)
+        new_next = self.next.relabeled(bij)
+        return RibbonGraph([new_op, new_next])
+
+    def rooted_isomorphism_signature(self, label):
+        edges = self.relabeled_by_root(label).edges()
+        return sorted([sorted(e) for e in edges])
+    
+    def isomorphism_signature(self):
+        return min(self.rooted_isomorphism_signature(label) for label in self.labels())
+
+    def vertex(self, label):
+        return self.next.cycle(label)
+        
     def vertices(self):
         return self.next.cycles()
+
+    def edge(self, label):
+        return self.opposite.cycle(label)
 
     def edges(self):
         return self.opposite.cycles()
 
+    def face(self, label):
+        return self.next_corner.cycle(label)
+    
     def faces(self):
         return self.next_corner.cycles()
 
+    def lace_component(self, label):
+        return (self.opposite*self.next*self.next).cycle(label)
+    
     def lace_components(self):
         return (self.opposite*self.next*self.next).cycles()
     
@@ -55,12 +116,34 @@ class RibbonGraph():
     def labels(self):
         return self.opposite.labels()
 
+    def with_shuffled_labels(self):
+        bijection = random_permutation(self.labels())
+        new_opposite = self.opposite.relabeled(bijection)
+        new_next = self.next.relabeled(bijection)
+        return RibbonGraph(permutations=[new_opposite, new_next])
+    
     def relabeled(self):
         labels = list(self.labels())
         indices = {l:i for i,l in enumerate(labels)}
         new_op = Permutation({i:indices[self.opposite[labels[i]]] for i in range(len(labels))})
         new_next = Permutation({i:indices[self.next[labels[i]]] for i in range(len(labels))})
         return RibbonGraph(new_op,new_next)
+
+    def disconnect_edges(self, labels):
+        """
+        Given list of half edges, where we choose exactly one from each edge,
+        disconnect each of those edges.
+        """
+
+        for label in labels:
+            assert self.opposite[label] not in labels
+            assert label in self.opposite
+
+        all_labels = labels[:]
+        all_labels.extend([self.opposite[label] for label in labels])
+        disconnecting_perm = Permutation(self.opposite.restricted_to(all_labels))
+        return RibbonGraph([self.opposite*disconnecting_perm, self.next])
+
     
     def vertex_merge_unmerge(self,a,b):
         """
@@ -137,3 +220,8 @@ class RibbonGraph():
                         break
             pd.append(vertex_code)
         return pd
+
+
+def random_link_shadow(size, edge_conn=2):
+    PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
+    return RibbonGraph(PD=PD)

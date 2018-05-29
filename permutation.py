@@ -1,5 +1,5 @@
 #from sage.all import Permutation as SagePermutation
-
+from random import shuffle
 class Bijection(dict):
     def __init__(self, dictionary={}, verify=True):
         self.domain = set()
@@ -21,9 +21,14 @@ class Bijection(dict):
 
     def __repr__(self):
         return ''.join(['{}->{}\n'.format(label,self[label]) for label in self])
-        
+
+    def act(self, label):
+        if label not in self:
+            return label
+        else:
+            return self[label]
             
-    def __mul__(self,other_bijection):
+    def composed_with(self,other_bijection):
         if self.codomain == other_bijection.domain:
             
             return Bijection({label: other_bijection[self[label]] for label in self })
@@ -32,6 +37,7 @@ class Bijection(dict):
 
     def inverse(self):
         return Bijection({self[label]:label for label in self})
+
         
 class Permutation(Bijection):
     def __init__(self, dictionary={}, cycles = [], verify=True):
@@ -42,6 +48,11 @@ class Permutation(Bijection):
 
         if verify:
             self.verify()
+
+    def __mul__(self,other_permutation):
+        combined_labels = self.labels().union(other_permutation.labels())
+        return Permutation({label: other_permutation.act(self.act(label)) for label in combined_labels })
+
 
     def add_cycle(self,cycle):
         for i in range(len(cycle)):
@@ -58,7 +69,7 @@ class Permutation(Bijection):
         return set(i for i in self if self[i]==i)
     
     def labels(self):
-        return self.domain
+        return set(self.domain)
             
     def cycle(self, label):
         c = [label]
@@ -78,9 +89,34 @@ class Permutation(Bijection):
             labels = labels-set(cycle)
         return cycles
 
+    def inverse(self):
+        return Permutation({self[label]:label for label in self})
+
+    def restricted_to(self, labels):
+        for label in labels:
+            assert self[label] in labels
+        return Permutation({label: self[label] for label in labels})
+        
+    
+    def relabeled(self, bijection):
+        return Permutation(bijection.inverse().composed_with(self).composed_with(bijection))
+    
     def sage(self):
         labels = list(self.labels())
         cycles = self.cycles()
         i_cycles = [tuple([labels.index(label)+1 for label in cycle]) for cycle in cycles]
         print(i_cycles)
         return SagePermutation(i_cycles)
+
+
+def random_permutation(labels):
+    permuted_labels = list(labels)
+    shuffle(permuted_labels)
+    return Permutation({l1: l2 for l1,l2 in zip(labels,permuted_labels)})
+
+def random_cycle(labels):
+    shuffle(labels)
+    return Permutation(cycles=[labels])
+
+def four_cycles(num_vertices):
+    return Permutation(cycles=[[4*i,4*i+1,4*i+2,4*i+3] for i in range(num_vertices)])
