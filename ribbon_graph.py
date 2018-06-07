@@ -1,6 +1,7 @@
 from sage.all import PermutationGroup
 from permutation import Permutation, Bijection, random_permutation
 from spherogram.links.random_links import map_to_link, random_map
+import itertools
 
 class RibbonGraph(object):
     def __init__(self, permutations=[], PD = []):
@@ -111,7 +112,7 @@ class RibbonGraph(object):
         return len(self.opposite)
 
     def dual(self):
-        return RibbonGraph(self.opposite, self.next_corner)
+        return RibbonGraph(permutations=[self.opposite, self.next_corner])
 
     def labels(self):
         return self.opposite.labels()
@@ -204,7 +205,7 @@ class RibbonGraph(object):
                 new_op_dict[(i,-1)] = (next_corner_inverse[i],1)
         new_op = Permutation(new_op_dict)
 
-        return RibbonGraph(new_op, new_next)
+        return RibbonGraph(permutations=[new_op, new_next])
         
     
     def PD_code(self):
@@ -221,6 +222,23 @@ class RibbonGraph(object):
             pd.append(vertex_code)
         return pd
 
+
+    def path_permutation(self, cycle_type):
+        perm = self.opposite
+        for turn_amount in cycle_type:
+            for i in range(turn_amount):
+                perm = perm * self.next
+            perm = perm*self.opposite
+        perm = perm*self.opposite
+        return perm
+
+    def search_for_cycles(self,max_turn, length):
+        cycle_types = []
+        for cycle_type in itertools.product(*[range(1,max_turn+1) for i in range(length)]):
+            perm = self.path_permutation(cycle_type)
+            if perm.fixed_points():
+                cycle_types.append(cycle_type)
+        return cycle_types
 
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
