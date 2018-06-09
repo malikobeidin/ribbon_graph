@@ -62,6 +62,26 @@ class RibbonGraph(object):
 
         return first_edges
 
+    def connected_component(self, label):
+        verts = self._vertex_search(label)
+        return set([l for v in verts for l in self.vertex(v)])
+        
+    def connected_components(self):
+        labels = self.next.labels()
+        conn_comps = []
+        while labels:
+            label = labels.pop()
+            comp = self.connected_component(label)
+            labels = labels-comp
+            conn_comps.append(comp)
+        return conn_comps
+
+    def restricted_to_connected_component_containing(self, label):
+        comp = self.connected_component(label)
+        new_op = self.opposite.restricted_to(comp)
+        new_next = self.next.restricted_to(comp)
+        return RibbonGraph([new_op, new_next])
+    
     def _relabeling_bijection(self, label):
         i = 1
         bij = {}
@@ -130,21 +150,36 @@ class RibbonGraph(object):
         new_next = Permutation({i:indices[self.next[labels[i]]] for i in range(len(labels))})
         return RibbonGraph(new_op,new_next)
 
+
     def disconnect_edges(self, labels):
         """
-        Given list of half edges, where we choose exactly one from each edge,
-        disconnect each of those edges.
+        Given list of half edges, disconnect the corresponding edges.
         """
+        opposite_labels = set(self.opposite[label] for label in labels)
+        all_labels = set(labels).union(opposite_labels)
+        new_op = self.opposite.restricted_to(self.opposite.labels()-all_labels)
+        for label in all_labels:
+            new_op[label] = label
+        return RibbonGraph([new_op, self.next])
 
-        for label in labels:
-            assert self.opposite[label] not in labels
-            assert label in self.opposite
+    
+    def connect_edges(self, pairing):
+        connecting_permutation = Permutation(cycles=pairing)
+        all_labels = connecting_permutation.labels()
+        for label in connecting_permutation.labels():
+            if self.opposite[label] != label:
+                raise Exception("Trying to connect already connect half edge")
+        new_op = self.opposite.restricted_to(self.opposite.labels()-all_labels)
+        return RibbonGraph([new_op*connecting_permutation, self.next])
+    
+    def remove_labels(self, labels):
+        old_op_labels = self.opposite.labels()
+        new_op = self.opposite.restricted_to(old_op_labels-set(labels))
 
-        all_labels = labels[:]
-        all_labels.extend([self.opposite[label] for label in labels])
-        disconnecting_perm = Permutation(self.opposite.restricted_to(all_labels))
-        return RibbonGraph([self.opposite*disconnecting_perm, self.next])
+        old_next_labels = self.next.labels()
+        new_next = self.next.restricted_to(old_next_labels-set(labels))
 
+        return RibbonGraph([new_op, new_next])
     
     def vertex_merge_unmerge(self,a,b):
         """
@@ -180,6 +215,7 @@ class RibbonGraph(object):
 
         return orientations
 
+    
     def permutation_subgroup(self):
         
         op = map(tuple, self.opposite.cycles())

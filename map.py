@@ -1,4 +1,5 @@
-from permutation import Bijection, Permutation
+from permutation import Bijection, Permutation, permutation_from_bijections
+from ribbon_graph import RibbonGraph
 
 class MapVertex(object):
     def __init__(self, label, num_slots):
@@ -24,4 +25,6 @@ class MapVertex(object):
         
 class Map(object):
     def __init__(self, vertices):
-        self.
+        opposite = permutation_from_bijections([v.opposite for v in vertices])
+        next = permutation_from_bijections([v.next for v in vertices])
+        self.ribbon_graph = RibbonGraph(permutations = [opposite, next])

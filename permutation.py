@@ -38,6 +38,10 @@ class Bijection(dict):
     def inverse(self):
         return Bijection({self[label]:label for label in self})
 
+    def restricted_to(self, labels):
+        return Bijection({label: self[label] for label in labels})
+
+    
         
 class Permutation(Bijection):
     def __init__(self, dictionary={}, cycles = [], verify=True):
