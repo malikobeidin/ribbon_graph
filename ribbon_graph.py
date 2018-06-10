@@ -4,6 +4,19 @@ from spherogram.links.random_links import map_to_link, random_map
 import itertools
 
 class RibbonGraph(object):
+    """
+    A RibbonGraph consists of a pair of permutations on a set of labels.
+    Each label corresponds to a half-edge, and the permutations 'opposite' and
+    'next' determine how the half-edges are connected to one another.
+    'opposite' determines which half-edge is on the opposite side of the same 
+    edge. 'next' determines which half-edge is the next counterclockwise 
+    half-edge on the same vertex.
+
+    The permutation next_corner is simply the product of opposite and next, and
+    is used frequently, so it is computed when the object is instantiated. It is
+    used to determine the faces of a RibbonGraph.
+    """
+    
     def __init__(self, permutations=[], PD = []):
         if permutations:
             opposite, next = permutations
@@ -37,7 +50,7 @@ class RibbonGraph(object):
 
         
     def __repr__(self):
-        return "RibbonGraph with {} half-edges".format(self.size())
+        return "RibbonGraph with {} half-edges and {} vertices".format(self.size(), len(self.vertices()))
         
     def _vertex_search(self, label):
         """
@@ -63,10 +76,19 @@ class RibbonGraph(object):
         return first_edges
 
     def connected_component(self, label):
+        """
+        Return all labels in the connected component of label. That is, all
+        labels which can be reached by applying the permutations opposite and 
+        next.
+        """
+        
         verts = self._vertex_search(label)
         return set([l for v in verts for l in self.vertex(v)])
         
     def connected_components(self):
+        """
+        Return all connected components.
+        """
         labels = self.next.labels()
         conn_comps = []
         while labels:
@@ -77,6 +99,10 @@ class RibbonGraph(object):
         return conn_comps
 
     def restricted_to_connected_component_containing(self, label):
+        """
+        Return a RibbonGraph (not just a set of labels) corresponding to the
+        connected component containing label.
+        """
         comp = self.connected_component(label)
         new_op = self.opposite.restricted_to(comp)
         new_next = self.next.restricted_to(comp)
@@ -92,31 +118,56 @@ class RibbonGraph(object):
         return Bijection(bij)
 
     def relabeled_by_root(self, label):
+        """
+        Change the labels so that they are ordered in a canonical way from 
+        RibbonGraph._vertex_search starting at label.
+        """
+        
         bij = self._relabeling_bijection(label)
         new_op = self.opposite.relabeled(bij)
         new_next = self.next.relabeled(bij)
         return RibbonGraph([new_op, new_next])
 
     def rooted_isomorphism_signature(self, label):
+        """
+        Returns a list of information which determines the RibbonGraph up to 
+        rooted isomorphism with root label. That is to say, if another 
+        RibbonGraph and one if its edges returns the same list of information,
+        the two RibbonGraphs are isomorphic to each other in such a way that 
+        the roots correspond to one another as well.
+        """
         edges = self.relabeled_by_root(label).edges()
         return sorted([sorted(e) for e in edges])
     
     def isomorphism_signature(self):
+        """
+        Return a list of information which determines the isomorphism type 
+        of the RibbonGraph.
+        """
         return min(self.rooted_isomorphism_signature(label) for label in self.labels())
 
     def vertex(self, label):
+        """
+        The vertex containing label
+        """
         return self.next.cycle(label)
         
     def vertices(self):
         return self.next.cycles()
 
     def edge(self, label):
+        """
+        The edge containing label
+        """
         return self.opposite.cycle(label)
 
     def edges(self):
         return self.opposite.cycles()
 
     def face(self, label):
+        """
+        The face containing label.
+        """
         return self.next_corner.cycle(label)
     
     def faces(self):
@@ -132,6 +183,12 @@ class RibbonGraph(object):
         return len(self.opposite)
 
     def dual(self):
+        """
+        Return the dual RibbonGraph, i.e. the RibbonGraph where the vertices
+        are the faces of the original, and the edges correspond to edges of the
+        original.
+        """
+        
         return RibbonGraph(permutations=[self.opposite, self.next_corner])
 
     def labels(self):
@@ -164,6 +221,11 @@ class RibbonGraph(object):
 
     
     def connect_edges(self, pairing):
+        """
+        Given a list of pairs of half-edge labels which are currently 
+        disconnected (fixed points of self.opposite), connect the half-edges up.
+        If one of the labels is already connected, it raises and exception.
+        """
         connecting_permutation = Permutation(cycles=pairing)
         all_labels = connecting_permutation.labels()
         for label in connecting_permutation.labels():
@@ -276,6 +338,80 @@ class RibbonGraph(object):
                 cycle_types.append(cycle_type)
         return cycle_types
 
+    def copy(self):
+        return RibbonGraph([Permutation(self.opposite), Permutation(self.next)])
+
+    
+    
+class EmbeddedCycle(object):
+    def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = [], label_set = set([])):
+        self.ribbon_graph = ribbon_graph
+        self.start_label = start_label
+
+        if labels:
+            self.turn_degrees = self._compute_turn_degrees_from_labels(labels)
+            self.labels = labels
+            
+        elif turn_degrees:
+            self.turn_degrees = turn_degrees
+            self.labels = self._compute_labels_from_turn_degrees(turn_degrees)
+                        
+        elif label_set:
+            self.labels = self._compute_labels_from_label_set(label_set)
+            self.turn_degrees = self._compute_turn_degrees_from_labels(self.labels)
+        else:
+            raise Exception("Must specify labels in cycle, the turn degrees, or the set of labels in the cycle")
+
+        self._verify_embedded()
+
+    def _compute_labels_from_turn_degrees(self, turn_degrees):
+        labels = [self.start_label]
+        label = self.start_label
+        for d in turn_degrees:
+            label = self.ribbon_graph.opposite[label]
+            label = self.ribbon_graph.next.iterate(d, label)
+            labels.append(label)
+        if labels[0] == labels[-1]:            
+            return labels[:-1]
+        else:
+            raise Exception("Path is not closed")
+
+    def _compute_turn_degrees_from_labels(self, labels):
+        turn_degrees = []
+        for i, label in enumerate(labels):
+            next_label = labels[(i+1)%len(labels)]
+            op_label = self.ribbon_graph.opposite[label]
+            vertex = self.ribbon_graph.vertex(op_label)
+            turn_degrees.append(vertex.index(next_label))
+        return turn_degrees
+
+    def _compute_labels_from_label_set(self, label_set):
+        labels = []
+        label = self.start_label
+        while label_set:
+            labels.append(label)
+            label = self.ribbon_graph.opposite[label]
+            vertex = self.ribbon_graph.vertex(label)
+            possible_next_labels = [l for l in label_set if l in vertex]
+            if len(possible_next_labels) != 1:
+                raise Exception("Label set does not define unique cycle")
+            label = possible_next_labels[0]
+            label_set.remove(label)
+        return labels
+            
+
+    def _verify_embedded(self):
+        for label in self.labels:
+            vertex = self.ribbon_graph.vertex(label)
+            for other_label in vertex:
+                if (other_label != label) and (other_label in self.labels):
+                    raise Exception("Cycle is not embedded")
+            
+
+    def __repr__(self):
+        return "EmbeddedCycle({})".format(self.labels)
+    
+    
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
     return RibbonGraph(PD=PD)

@@ -112,6 +112,18 @@ class Permutation(Bijection):
         print(i_cycles)
         return SagePermutation(i_cycles)
 
+    def iterate(self, n, label):
+        if n<0:
+            inverse = self.inverse()
+            for i in range(abs(n)):
+                label = inverse[label]
+            return label
+        elif n>0:
+            for i in range(n):
+                label = self[label]
+            return label
+        else:
+            return label
 
 def permutation_from_bijections(bijections):
     B = Bijection()
