@@ -341,14 +341,16 @@ class RibbonGraph(object):
     def copy(self):
         return RibbonGraph([Permutation(self.opposite), Permutation(self.next)])
 
-    
-    
-class EmbeddedCycle(object):
-    def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = [], label_set = set([])):
+
+class Path(object):
+    def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = []):
         self.ribbon_graph = ribbon_graph
         self.start_label = start_label
 
+        
         if labels:
+            if labels[0] != start_label:
+                raise Exception("Starting label must be first in list of labels")
             self.turn_degrees = self._compute_turn_degrees_from_labels(labels)
             self.labels = labels
             
@@ -356,13 +358,9 @@ class EmbeddedCycle(object):
             self.turn_degrees = turn_degrees
             self.labels = self._compute_labels_from_turn_degrees(turn_degrees)
                         
-        elif label_set:
-            self.labels = self._compute_labels_from_label_set(label_set)
-            self.turn_degrees = self._compute_turn_degrees_from_labels(self.labels)
         else:
-            raise Exception("Must specify labels in cycle, the turn degrees, or the set of labels in the cycle")
+            raise Exception("Must specify list of half-edge labels or turn degrees")
 
-        self._verify_embedded()
 
     def _compute_labels_from_turn_degrees(self, turn_degrees):
         labels = [self.start_label]
@@ -371,19 +369,44 @@ class EmbeddedCycle(object):
             label = self.ribbon_graph.opposite[label]
             label = self.ribbon_graph.next.iterate(d, label)
             labels.append(label)
-        if labels[0] == labels[-1]:            
-            return labels[:-1]
-        else:
-            raise Exception("Path is not closed")
-
+        return labels
+    
     def _compute_turn_degrees_from_labels(self, labels):
         turn_degrees = []
-        for i, label in enumerate(labels):
-            next_label = labels[(i+1)%len(labels)]
+        for i in range(len(labels)-1):
+            label, next_label = labels[i], labels[i+1]
             op_label = self.ribbon_graph.opposite[label]
             vertex = self.ribbon_graph.vertex(op_label)
             turn_degrees.append(vertex.index(next_label))
         return turn_degrees
+
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__,self.labels)
+
+    
+class EmbeddedPath(Path):
+    def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = [], label_set = set([])):
+        if labels or turn_degrees:
+            
+            super(EmbeddedPath,self).__init__(ribbon_graph,
+                                              start_label,
+                                              labels=labels,
+                                              turn_degrees = turn_degrees)
+        elif label_set:
+            self.ribbon_graph = ribbon_graph
+            self.start_label = start_label
+            
+            labels = self._compute_labels_from_label_set(label_set)
+            super(EmbeddedPath,self).__init__(ribbon_graph,
+                                              start_label,
+                                              labels=labels,
+                                              turn_degrees = [])
+        else:
+
+            raise Exception("Must specify either labels, turn degrees, or the set of labels in the embedded path.")
+
+        self._verify_embedded()
 
     def _compute_labels_from_label_set(self, label_set):
         labels = []
@@ -394,24 +417,65 @@ class EmbeddedCycle(object):
             vertex = self.ribbon_graph.vertex(label)
             possible_next_labels = [l for l in label_set if l in vertex]
             if len(possible_next_labels) != 1:
-                raise Exception("Label set does not define unique cycle")
+                raise Exception("Label set does not define path")
             label = possible_next_labels[0]
             label_set.remove(label)
         return labels
             
-
     def _verify_embedded(self):
-        for label in self.labels:
-            vertex = self.ribbon_graph.vertex(label)
-            for other_label in vertex:
-                if (other_label != label) and (other_label in self.labels):
-                    raise Exception("Cycle is not embedded")
-            
+        vertices = [frozenset(self.ribbon_graph.vertex(label)) for label in self.labels]
+        if len(set(vertices)) < len(vertices):
+            raise Exception("Path is not embedded")
 
-    def __repr__(self):
-        return "EmbeddedCycle({})".format(self.labels)
-    
-    
+
+class EmbeddedCycle(Path):
+    def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = [], label_set = set([])):
+        if labels or turn_degrees:
+            
+            super(EmbeddedCycle,self).__init__(ribbon_graph,
+                                              start_label,
+                                              labels=labels,
+                                              turn_degrees = turn_degrees)
+        elif label_set:
+            self.ribbon_graph = ribbon_graph
+            self.start_label = start_label
+            labels = self._compute_labels_from_label_set(label_set)
+            super(EmbeddedCycle,self).__init__(ribbon_graph,
+                                              start_label,
+                                              labels=labels,
+                                              turn_degrees = [])
+        else:
+
+            raise Exception("Must specify either labels, turn degrees, or the set of labels in the embedded cycle.")
+
+        self._verify_embedded_up_to_final_label()
+        self._verify_cycle()
+
+    def _compute_labels_from_label_set(self, label_set):
+        labels = []
+        label = self.start_label
+        while label_set:
+            labels.append(label)
+            label = self.ribbon_graph.opposite[label]
+            vertex = self.ribbon_graph.vertex(label)
+            possible_next_labels = [l for l in label_set if l in vertex]
+            if len(possible_next_labels) != 1:
+                raise Exception("Label set does not define path")
+            label = possible_next_labels[0]
+            label_set.remove(label)
+        labels.append(self.start_label)
+        return labels
+            
+    def _verify_embedded_up_to_final_label(self):
+        vertices = [frozenset(self.ribbon_graph.vertex(label)) for label in self.labels[:-1]]
+        if len(set(vertices)) < len(vertices):
+            raise Exception("Cycle is not embedded")
+
+    def _verify_cycle(self):
+        if self.labels[-1] != self.start_label:
+            raise Exception("Not a cycle")
+
+
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
     return RibbonGraph(PD=PD)
