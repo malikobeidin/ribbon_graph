@@ -53,6 +53,17 @@ class Path(object):
     def next_vertex(self):
         return self.ribbon_graph.vertex( self.ribbon_graph.opposite[self.labels[-1]]  )
 
+    def inverse_turn_degrees(self):
+        inverse_turn_degrees = []
+        opposite = self.ribbon_graph.opposite
+        labels = self.labels
+        for i in range(len(labels)-1):
+            label, next_label = labels[i], labels[i+1]
+            op_label = opposite[label]
+            vertex = self.ribbon_graph.vertex(op_label)
+            inverse_turn_degrees.append(len(vertex) - vertex.index(next_label))
+        return inverse_turn_degrees
+        
     
 class EmbeddedPath(Path):
     def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = [], label_set = set([])):
@@ -178,6 +189,22 @@ class EmbeddedCycle(Path):
     def __len__(self):
         return len(self.labels)-1
 
+        
+    def left_side_labels(self):
+        left_sides = []
+        next_inv = self.ribbon_graph.next.inverse()
+        inv_turn_degrees = self.inverse_turn_degrees()
+        for label, turn_degree in zip(self.labels[:-1],inv_turn_degrees):
+            next_label = self.ribbon_graph.opposite[label]
+            left_side_labels = []
+            
+            for j in range(turn_degree-1):
+                next_label = next_inv[next_label]
+                left_side_labels.append(next_label)
+            left_sides.append(left_side_labels)
+        return left_sides
+
+    
         
     def right_side_labels(self):
         right_sides = []
