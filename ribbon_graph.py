@@ -47,7 +47,7 @@ class RibbonGraph(object):
 
         self.opposite = opposite
         self.next = next        
-        self.next_corner = self.opposite * self.next
+        self.next_corner = self.opposite * self.next.inverse()
 
         
     def __repr__(self):
@@ -174,6 +174,9 @@ class RibbonGraph(object):
     def faces(self):
         return self.next_corner.cycles()
 
+    def euler_characteristic(self):
+        return len(self.vertices()) - len(self.edges()) + len(self.faces())
+    
     def lace_component(self, label):
         return (self.opposite*self.next*self.next).cycle(label)
     
@@ -192,6 +195,13 @@ class RibbonGraph(object):
         
         return RibbonGraph(permutations=[self.opposite, self.next_corner])
 
+    def mirror(self):
+        """
+        Return the mirror image of the RibbonGraph, which has the same edges
+        but in the reverse order around each vertex.
+        """
+        return RibbonGraph(permutations=[self.opposite, self.next.inverse()])
+    
     def labels(self):
         return self.opposite.labels()
 
