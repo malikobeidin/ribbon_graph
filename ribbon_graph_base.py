@@ -1,6 +1,6 @@
 from sage.all import PermutationGroup
 from permutation import Permutation, Bijection, random_permutation
-from cycle import *
+from cycle import Path, EmbeddedPath, EmbeddedCycle
 from spherogram.links.random_links import map_to_link, random_map
 import itertools
 
@@ -403,7 +403,7 @@ class RibbonGraph(object):
 
 
     def info(self):
-        print("Vertices:{}\nEdges:{}\nFaces{}".format(self.vertices(), self.edges(), self.faces()))
+        print("Vertices: {}\nEdges: {}\nFaces: {}".format(self.vertices(), self.edges(), self.faces()))
 
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()

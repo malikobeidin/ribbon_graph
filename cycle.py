@@ -1,4 +1,3 @@
-from ribbon_graph_base import RibbonGraph
 
 class Path(object):
     def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = []):
