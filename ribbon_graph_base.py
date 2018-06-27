@@ -191,6 +191,11 @@ class RibbonGraph(object):
         Return the dual RibbonGraph, i.e. the RibbonGraph where the vertices
         are the faces of the original, and the edges correspond to edges of the
         original.
+
+        The dual of the dual is NOT exactly the original. It is the original,
+        but with all of the labels switched with their opposites.
+        That is, the 'next' permutation has been conjugated by the 'opposite'
+        permutation.
         """
         
         return RibbonGraph(permutations=[self.opposite, self.next_corner])
@@ -230,12 +235,23 @@ class RibbonGraph(object):
             new_op[label] = label
         return RibbonGraph([new_op, self.next])
 
+    def disconnect_vertices(self, labels):
+        """
+        Given list of half edges, pull off the labels at each vertex.
+        """
+        label_set = set(labels)
+        new_next = self.next
+        for label in label_set:
+            switch_perm = Permutation({label:new_next[label],new_next[label]:label })
+            new_next = new_next * switch_perm
+        return RibbonGraph([self.opposite, new_next])
+
     
     def connect_edges(self, pairing):
         """
         Given a list of pairs of half-edge labels which are currently 
         disconnected (fixed points of self.opposite), connect the half-edges up.
-        If one of the labels is already connected, it raises and exception.
+        If one of the labels is already connected, it raises an exception.
         """
         connecting_permutation = Permutation(cycles=pairing)
         all_labels = connecting_permutation.labels()
@@ -244,6 +260,9 @@ class RibbonGraph(object):
                 raise Exception("Trying to connect already connect half edge")
         new_op = self.opposite.restricted_to(self.opposite.labels()-all_labels)
         return RibbonGraph([new_op*connecting_permutation, self.next])
+
+    def connect_vertices(self, pairing):
+        pass
     
     def remove_labels(self, labels):
         old_op_labels = self.opposite.labels()
@@ -263,7 +282,7 @@ class RibbonGraph(object):
         If a or b are not in the set of labels already present, this adds
         a new dart
         """
-        return RibbonGraph(self.opposite, self.next*Permutation({a:b,b:a}))
+        return RibbonGraph(permutations = [self.opposite, self.next*Permutation({a:b,b:a})])
     
     def orientations(self):
         vertices = self.vertices()
@@ -382,10 +401,9 @@ class RibbonGraph(object):
     def copy(self):
         return RibbonGraph([Permutation(self.opposite), Permutation(self.next)])
 
-    def cut_along_cycle(self, cycle):
-        
-        return RibbonGraph()
 
+    def info(self):
+        print("Vertices:{}\nEdges:{}\nFaces{}".format(self.vertices(), self.edges(), self.faces()))
 
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()

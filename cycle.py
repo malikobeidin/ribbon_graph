@@ -1,4 +1,4 @@
-from ribbon_graph import RibbonGraph
+from ribbon_graph_base import RibbonGraph
 
 class Path(object):
     def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = []):
@@ -221,3 +221,8 @@ class EmbeddedCycle(Path):
         return right_sides
 
     
+    def left_side(self):
+        R = self.ribbon_graph.copy()
+        right_side_labels = [l for labels in self.right_side_labels() for l in labels]
+        return R.disconnect_vertices(right_side_labels).restricted_to_connected_component_containing(self.start_label)
+        
