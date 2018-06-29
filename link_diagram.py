@@ -7,5 +7,5 @@ class EulerianMap(RibbonGraph):
             assert len(v)%2 == 0
 
 
-class Link(RibbonGraph):
+class Link(Eulerian):
     pass
