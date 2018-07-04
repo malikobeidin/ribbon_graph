@@ -245,7 +245,9 @@ class RibbonGraph(object):
             switch_perm = Permutation({label:new_next[label],new_next[label]:label })
             new_next = new_next * switch_perm
         return RibbonGraph([self.opposite, new_next])
-
+    
+    def delete_labels(self, labels):
+        return self.disconnect_edges(labels).disconnect_vertices(labels).remove_labels(labels)
     
     def connect_edges(self, pairing):
         """
@@ -261,6 +263,31 @@ class RibbonGraph(object):
         new_op = self.opposite.restricted_to(self.opposite.labels()-all_labels)
         return RibbonGraph([new_op*connecting_permutation, self.next])
 
+
+    def disjoint_union(self, other_ribbon_graph):
+        new_op = self.opposite.disjoint_union(other_ribbon_graph.opposite)
+        new_next = self.next.disjoint_union(other_ribbon_graph.next)
+        return RibbonGraph([new_op, new_next])
+
+    
+    def glue_along_vertex(self, label, other_ribbon_graph, other_label):
+        vertex = self.vertex(label)
+        other_vertex = other_ribbon_graph.vertex(other_label)
+        if len(vertex) != len(other_vertex):
+            raise Exception("Must glue along two vertices of same size")        
+
+    def glue_along_face(self, label, other_ribbon_graph, other_label):
+        face_length = len(self.face(label))
+        if len(other_ribbon_graph.face(other_label)) != face_length:
+            raise Exception("Faces must have same size")
+        cycle = EmbeddedCycle(self, label, turn_degrees = [-1]*face_length)
+        other_cycle = EmbeddedCycle(other_ribbon_graph, other_label, turn_degrees = [-1]*face_length)
+        union_ribbon_graph = self.disjoint_union(other_ribbon_graph)
+        for l, ol in zip(cycle.labels[:-1], other_cycle.labels[:-1]):
+            union_ribbon_graph = union_ribbon_graph.vertex_merge_unmerge((l,0),(ol,1) )
+        return union_ribbon_graph
+            
+    
     def connect_vertices(self, pairing):
         pass
     
@@ -405,6 +432,20 @@ class RibbonGraph(object):
     def info(self):
         print("Vertices: {}\nEdges: {}\nFaces: {}".format(self.vertices(), self.edges(), self.faces()))
 
+class StackedRibbonGraph(RibbonGraph):
+    """
+    A ribbon graph where at each vertex we allow some extra information:
+    namely, we assign heights to each of the strands coming in, given in the
+    form of a dictionary from labels to nonnegative integers.
+    """
+    
+    def __init__(self, permutations = [], PD = [], heights = {}):
+        opposite, next = permutations
+        super(StackedRibbonGraph,self).__init__([opposite, next], PD)
+        
+        self._verify_nonnegative
+        
+        
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
     return RibbonGraph(PD=PD)

@@ -140,7 +140,8 @@ class EmbeddedPath(Path):
         
 class EmbeddedCycle(Path):
     """
-    Turn degrees all -1 correspond to faces
+    Turn degrees all -1 correspond to faces oriented in the same way as 
+    the RibbonGraph (with the face to the left side).
     """
     def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = [], label_set = set([])):
         if labels or turn_degrees:

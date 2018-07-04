@@ -26,7 +26,7 @@ class MapVertex(object):
     def __len__(self):
         return len(self.next)
         
-class Map(object):
+class StrandDiagram(object):
     def __init__(self, vertices):
         opposite = permutation_from_bijections([v.opposite for v in vertices])
         next = permutation_from_bijections([v.next for v in vertices])
@@ -37,19 +37,14 @@ class Map(object):
     def _verify_planarity(self):
         pass
         
-class EulerianMap(Map):
-    def __init__(self, vertices):
-        super(EulerianMap,self).__init__(vertices)
-
-    def _verify_eulerian(self):
-        for vertex in self.vertices:
-            assert len(vertex) % 2 == 0
         
-class Link(EulerianMap):
+class Link(StrandDiagram):
     def __init__(self, vertices):
         
         super(Link,self).__init__(vertices)
 
+        self._verify_four_valent()
+                
     def _verify_four_valent(self):
         for vertex in self.vertices:
             assert len(vertex) == 4

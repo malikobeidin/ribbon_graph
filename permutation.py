@@ -104,6 +104,10 @@ class Permutation(Bijection):
     
     def relabeled(self, bijection):
         return Permutation(bijection.inverse().composed_with(self).composed_with(bijection))
+
+    def relabel_with_integers(self):
+        relabeling = Bijection({l:i for i,l in enumerate(self.labels())})
+        return self.relabeled(relabeling), relabeling
     
     def sage(self):
         labels = list(self.labels())
@@ -111,7 +115,7 @@ class Permutation(Bijection):
         i_cycles = [tuple([labels.index(label)+1 for label in cycle]) for cycle in cycles]
         print(i_cycles)
         return SagePermutation(i_cycles)
-
+    
     def iterate(self, n, label):
         if n<0:
             inverse = self.inverse()
@@ -125,6 +129,15 @@ class Permutation(Bijection):
         else:
             return label
 
+    def disjoint_union(self, other_permutation):
+        combined = {}
+        for label in self:
+            combined[(label,0)] = (self[label],0)
+        for label in other_permutation:
+            combined[(label,1)] = (other_permutation[label],1)
+        return Permutation(combined)
+        
+        
 def permutation_from_bijections(bijections):
     B = Bijection()
     for bijection in bijections:
