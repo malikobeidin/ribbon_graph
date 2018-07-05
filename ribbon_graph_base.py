@@ -277,14 +277,32 @@ class RibbonGraph(object):
             raise Exception("Must glue along two vertices of same size")        
 
     def glue_along_face(self, label, other_ribbon_graph, other_label):
+        """
+        Given two embedded faces (no vertex is encountered twice when walking
+        around boundary) of the same size on two different ribbon graphs,
+        glue along that boundary cycle so that label in self ends up
+        connected to (an opposite) other_label in other_ribbon_graph.
+        """
+        
         face_length = len(self.face(label))
         if len(other_ribbon_graph.face(other_label)) != face_length:
             raise Exception("Faces must have same size")
         cycle = EmbeddedCycle(self, label, turn_degrees = [-1]*face_length)
-        other_cycle = EmbeddedCycle(other_ribbon_graph, other_label, turn_degrees = [-1]*face_length)
+        other_cycle = EmbeddedCycle(other_ribbon_graph, other_label, turn_degrees = [-1]*face_length).reversed()
         union_ribbon_graph = self.disjoint_union(other_ribbon_graph)
         for l, ol in zip(cycle.labels[:-1], other_cycle.labels[:-1]):
-            union_ribbon_graph = union_ribbon_graph.vertex_merge_unmerge((l,0),(ol,1) )
+            nl, nol = self.next[l], other_ribbon_graph.next[ol]
+            #the following function glues two vertices in the slots BEFORE
+            #the given labels. So, need to shift them by one first, as above.
+            union_ribbon_graph = union_ribbon_graph.vertex_merge_unmerge((nl,0),(nol,1) )
+        #Edges on mutual boundary are now doubled, need to cut half of them.
+        #we cut the ones from other_ribbon_graph, as a convention.
+        doubled_edges = []
+        for ol in other_cycle.labels[:-1]:
+            doubled_edges.append((ol,1))
+            doubled_edges.append((other_ribbon_graph.opposite[ol],1))
+
+        union_ribbon_graph = union_ribbon_graph.delete_labels(doubled_edges)
         return union_ribbon_graph
             
     
@@ -449,3 +467,24 @@ class StackedRibbonGraph(RibbonGraph):
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
     return RibbonGraph(PD=PD)
+
+def trefoil():
+    next = Permutation(cycles=[('a','b','c','d'),
+                               ('e','f','g','h'),
+                               ('i','j','k','l')])
+    opposite = Permutation(cycles=[('a','f'),
+                                ('b','e'),
+                                ('c','l'),
+                                ('d','k'),
+                                ('i','h'),
+                                ('g','j')])
+    return RibbonGraph([opposite, next])
+
+def loops():
+    next = Permutation(cycles=[(1,2,3,4),
+                               (5,6,7,8)])
+    opposite = Permutation(cycles=[(1,5),
+                                (2,8),
+                                (3,4),
+                                (6,7)])
+    return RibbonGraph([opposite, next])

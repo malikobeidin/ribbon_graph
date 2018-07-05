@@ -226,3 +226,7 @@ class EmbeddedCycle(Path):
         right_side_labels = [l for labels in self.right_side_labels() for l in labels]
         return R.disconnect_vertices(right_side_labels).restricted_to_connected_component_containing(self.start_label)
         
+
+    def reversed(self):
+        op_labels = list(reversed([self.ribbon_graph.opposite[l] for l in self.labels]))
+        return EmbeddedCycle(self.ribbon_graph, op_labels[0], labels = op_labels)
