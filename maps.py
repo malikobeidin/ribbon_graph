@@ -27,6 +27,41 @@ class MapVertex(object):
         return len(self.next)
         
 class StrandDiagram(object):
+    def __init__(self, ribbon_graph, heights):
+        self.ribbon_graph = ribbon_graph
+        self.heights = heights        
+        self._verify_eulerian_and_height_rules()
+
+        
+    def _verify_eulerian_and_height_rules(self):
+        labels = self.ribbon_graph.labels()
+        while labels:
+            label = labels.pop()
+            vertex = self.ribbon_graph.vertex(label)
+            heights_around_vertex = [self.heights[label]]
+            for other_vertex_label in vertex[1:]:
+                heights_around_vertex.append(self.heights[other_vertex_label])
+                labels.remove(other_vertex_label)
+            vertex_length = len(heights_around_vertex)
+            if (vertex_length % 2) != 0:
+                raise Exception("Diagram has vertex of odd degree")
+            first_half, second_half = heights_around_vertex[:(vertex_length//2)], heights_around_vertex[(vertex_length//2):]
+            if first_half != second_half:
+                raise Exception("Strand heights inconsistent around vertex")
+            if set(first_half) == set(range(len(first_half))) or set(first_half) == set([0]):
+                #checking that first_half is just a permutation of 0,...,len(first_half) (a normal crossing) or all zeros (a virtual crossing)
+                continue
+            else:
+                raise Exception("Strand heights not in allowed pattern.")
+                
+                
+                
+            
+            
+            
+        
+"""
+class StrandDiagram(object):
     def __init__(self, vertices):
         opposite = permutation_from_bijections([v.opposite for v in vertices])
         next = permutation_from_bijections([v.next for v in vertices])
@@ -36,7 +71,8 @@ class StrandDiagram(object):
 
     def _verify_planarity(self):
         pass
-        
+"""
+    
         
 class Link(StrandDiagram):
     def __init__(self, vertices):

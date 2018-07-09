@@ -6,7 +6,9 @@ def version():
 
 from ribbon_graph_base import RibbonGraph, random_link_shadow
 from cycle import Path, EmbeddedPath, EmbeddedCycle
-import maps
+from maps import StrandDiagram
+from permutation import Bijection, Permutation
 
 
-__all__ = ['RibbonGraph', 'Path', 'EmbeddedPath', 'EmbeddedCycle']
+
+__all__ = ['RibbonGraph', 'Path', 'EmbeddedPath', 'EmbeddedCycle', 'StrandDiagram', 'Permutation', 'Bijection']

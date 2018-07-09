@@ -450,18 +450,6 @@ class RibbonGraph(object):
     def info(self):
         print("Vertices: {}\nEdges: {}\nFaces: {}".format(self.vertices(), self.edges(), self.faces()))
 
-class StackedRibbonGraph(RibbonGraph):
-    """
-    A ribbon graph where at each vertex we allow some extra information:
-    namely, we assign heights to each of the strands coming in, given in the
-    form of a dictionary from labels to nonnegative integers.
-    """
-    
-    def __init__(self, permutations = [], PD = [], heights = {}):
-        opposite, next = permutations
-        super(StackedRibbonGraph,self).__init__([opposite, next], PD)
-        
-        self._verify_nonnegative
         
         
 def random_link_shadow(size, edge_conn=2):
