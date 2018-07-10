@@ -186,6 +186,23 @@ class RibbonGraph(object):
     def size(self):
         return len(self.opposite)
 
+    def make_new_labels(self, num_labels):
+        max_int_label = 0
+        for j in self.labels():
+            try:
+                j_int = int(j)
+                if j_int > max_int_label:
+                    max_int_label = j_int
+            except (ValueError, TypeError):
+                try:
+                    j_int = int(max(j))
+                    if j_int > max_int_label:
+                        max_int_label = j_int
+                except:
+                    continue
+        return range(max_int_label + 1, max_int_label + 1 + num_labels)
+
+        
     def dual(self):
         """
         Return the dual RibbonGraph, i.e. the RibbonGraph where the vertices
@@ -304,7 +321,19 @@ class RibbonGraph(object):
 
         union_ribbon_graph = union_ribbon_graph.delete_labels(doubled_edges)
         return union_ribbon_graph
-            
+
+    def add_new_vertices(self, vertex_labels, vertex_size):
+        """
+        Add a new vertex for each label in vertex_labels, with each vertex
+        having size vertex_size. The half edges around the vertex 
+        corresponding to l will be labeled (l,0),(l,1),...(l,vertex_size-1).
+        They are not yet connected to any other vertices.
+        """
+
+        new_op = self.opposite * Permutation({(l,i):(l,i) for l in vertex_labels for i in range(vertex_size)} )
+        new_next = self.next * Permutation(cycles = [[(l,i) for i in range(vertex_size)] for l in vertex_labels]) 
+
+        return RibbonGraph([new_op, new_next])
     
     def connect_vertices(self, pairing):
         pass
@@ -352,6 +381,57 @@ class RibbonGraph(object):
 
         return orientations
 
+    
+    def draw_strand_along_path(self, start, end, path):
+        """
+        Given an EmbeddedPath in the DUAL ribbon graph
+        from two disconnected labels (i.e., labels 'start' and 'end'
+        for which self.opposite is a fixed point), create a strand from one
+        to the other crossing along the edges in path.
+        The label 'start' must be on the same face as the first label in path,
+        and the label 'end' must be OPPOSITE a label on the same face as the
+        last label in path. So, path is the sequence of edges you must cross to
+        get from the face containing start to the face containing end.
+        """
+        op = self.opposite
+        next = self.next
+        if  op[start] != start:
+            raise Exception("The start label is already connected.")
+        if op[end] != end:
+            raise Exception("The end label is already connected.")
+        if path.labels[0] not in self.face(start):
+            raise Exception("Path must begin on same face as start label.")
+        if self.opposite[path.labels[-1]] not in self.face(end):
+            raise Exception("Path must finish on a label opposite the face of the end label.")
+        
+        new_ribbon_graph = self.disconnect_edges(path.labels)
+        new_labels = new_ribbon_graph.make_new_labels(len(path.labels))
+        new_ribbon_graph = new_ribbon_graph.add_new_vertices(new_labels, 4)
+
+        #Making the connections along the path itself
+        connections = [(start, (new_labels[0],0))]
+        for i in range(len(new_labels)-1):
+            new_label, next_new_label = new_labels[i], new_labels[i+1]
+            connections.append( ( (new_label,2) , (next_new_label,0) ) )
+        connections.append((end, (new_labels[-1], 2)))
+
+        #Making the connections on either side of the path (to the edges crossed)
+        for new_label, label in zip(new_labels, path.labels):
+            connections.append((label,(new_label,1)))
+            connections.append((self.opposite[label],(new_label,3)))
+
+
+        return new_ribbon_graph.connect_edges(connections)
+
+    def move_strand_off_crossing(self, label, ccw=True):
+        """
+        Take the strand defined by label and move it around the vertex in the
+        counterclockwise direction (unless ccw is set to False).
+        If the number of labels around the vertex is odd, then there are no
+        'strands' so it raises an exception.
+        """
+        vertex = self.vertex(label)
+        
     
     def permutation_subgroup(self):
         

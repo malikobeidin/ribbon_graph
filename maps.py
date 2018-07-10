@@ -53,12 +53,17 @@ class StrandDiagram(object):
                 continue
             else:
                 raise Exception("Strand heights not in allowed pattern.")
-                
-                
-                
-            
-            
-            
+
+    def crossing_type(self, label):
+        vertex = self.ribbon_graph.vertex(label)
+        vertex_heights = [self.heights[l] for l in vertex]
+        if len(set(vertex_heights)) == 1:
+            return 'v'
+        elif len(set(vertex_heights)) == 2:
+            return 'c'
+        else:
+            return 'm'
+
         
 """
 class StrandDiagram(object):

@@ -144,7 +144,7 @@ def permutation_from_bijections(bijections):
         for key in bijection:
             B[key] = bijection[key]
     return Permutation(B)
-    
+
 def random_permutation(labels):
     permuted_labels = list(labels)
     shuffle(permuted_labels)
