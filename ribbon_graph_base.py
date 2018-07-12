@@ -22,29 +22,7 @@ class RibbonGraph(object):
         if permutations:
             opposite, next = permutations
         if PD:
-            edge_dict = {}
-            for n,v in enumerate(PD):
-                for m,label in enumerate(v):                    
-                    if label in edge_dict:
-                        edge_dict[label].append((n,m))
-                    else:
-                        edge_dict[label] = [(n,m)]
-            positions = []
-            for l in edge_dict.values():
-                positions.extend(l)
-
-            opposite_list = [[positions.index(pair)+1 for pair in edge_dict[label]] for label in edge_dict ]
-
-            next_list = []
-            for n,v in enumerate(PD):
-                cycle = []
-                for m,label in enumerate(v):
-                    cycle.append(positions.index((n,m))+1)
-                next_list.append(cycle)
-
-            opposite = Permutation(dictionary={},cycles = opposite_list)
-            next = Permutation(dictionary={},cycles = next_list)
-
+            opposite, next = self._permutations_from_PD(PD)
         self.opposite = opposite
         self.next = next        
         self.next_corner = self.opposite * self.next.inverse()
@@ -52,7 +30,32 @@ class RibbonGraph(object):
         
     def __repr__(self):
         return "RibbonGraph with {} half-edges and {} vertices".format(self.size(), len(self.vertices()))
-        
+
+    def _permutations_from_PD(self, PD):
+        edge_dict = {}
+        for n,v in enumerate(PD):
+            for m,label in enumerate(v):                    
+                if label in edge_dict:
+                    edge_dict[label].append((n,m))
+                else:
+                    edge_dict[label] = [(n,m)]
+        positions = []
+        for l in edge_dict.values():
+            positions.extend(l)
+
+        opposite_list = [[positions.index(pair)+1 for pair in edge_dict[label]] for label in edge_dict ]
+
+        next_list = []
+        for n,v in enumerate(PD):
+            cycle = []
+            for m,label in enumerate(v):
+                cycle.append(positions.index((n,m))+1)
+            next_list.append(cycle)
+
+        opposite = Permutation(dictionary={},cycles = opposite_list)
+        next = Permutation(dictionary={},cycles = next_list)
+        return opposite,next
+    
     def _vertex_search(self, label):
         """
         Starting with an oriented half edge label, perform a breadth first
@@ -306,7 +309,7 @@ class RibbonGraph(object):
         new_op = self.opposite.restricted_to(self.opposite.labels()-all_labels)
         return RibbonGraph([new_op*connecting_permutation, self.next])
 
-
+    
     def disjoint_union(self, other_ribbon_graph):
         new_op = self.opposite.disjoint_union(other_ribbon_graph.opposite)
         new_next = self.next.disjoint_union(other_ribbon_graph.next)

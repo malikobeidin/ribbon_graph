@@ -27,10 +27,11 @@ class MapVertex(object):
         return len(self.next)
         
 class StrandDiagram(object):
-    def __init__(self, ribbon_graph, heights):
+    def __init__(self, ribbon_graph, heights, verify=True):
         self.ribbon_graph = ribbon_graph
         self.heights = heights        
-        self._verify_eulerian_and_height_rules()
+        if verify:
+            self._verify_eulerian_and_height_rules()
 
         
     def _verify_eulerian_and_height_rules(self):
@@ -63,35 +64,58 @@ class StrandDiagram(object):
             return 'c'
         else:
             return 'm'
-
-        
-"""
-class StrandDiagram(object):
-    def __init__(self, vertices):
-        opposite = permutation_from_bijections([v.opposite for v in vertices])
-        next = permutation_from_bijections([v.next for v in vertices])
-        self.ribbon_graph = RibbonGraph(permutations = [opposite, next])
-
-        self._verify_planarity()
-
-    def _verify_planarity(self):
-        pass
-"""
     
         
 class Link(StrandDiagram):
-    def __init__(self, vertices):
-        
-        super(Link,self).__init__(vertices)
+    def __init__(self, vertices=[], PD=[]):
+        if PD and not vertices:
+            vertices = self._vertices_from_PD(PD)
+        opposite = permutation_from_bijections([v.opposite for v in vertices])
+        next = permutation_from_bijections([v.next for v in vertices])
 
-        self._verify_four_valent()
+        ribbon_graph = RibbonGraph([opposite,next])
+        heights = {label: label[1]%2 for label in ribbon_graph.labels()}
+        super(Link,self).__init__(ribbon_graph, heights)
+
+        self._verify_valence_and_heights()
+
+    def _vertices_from_PD(self, PD):
+        vertices = [MapVertex(i,4) for i in range(len(PD))]
+        edge_dict = {}
+        for vertex_label, edge_list in enumerate(PD):
+            for slot, edge in enumerate(edge_list):
+                if edge in edge_dict:
+                    old_vertex_label, old_slot = edge_dict[edge]
+                    vertices[vertex_label][slot] = vertices[old_vertex_label][old_slot]
+                else:
+                    edge_dict[edge] = (vertex_label, slot)
+        return vertices
                 
-    def _verify_four_valent(self):
-        for vertex in self.vertices:
-            assert len(vertex) == 4
+    def _verify_valence_and_heights(self):
+        pass
         
     def spherogram(self):
-        return spherogram.Link(self.ribbon_graph.PD_code())
+        vertices = self.ribbon_graph.vertices()
+        edges = self.ribbon_graph.edges()
+        PD = []
+        for v in vertices:
+            needs_rotation = False
+            if self.heights[v[0]] == 1:
+                needs_rotation = True
+            vertex_code = []
+            for i in v:
+                for j, edge in enumerate(edges):
+                    if i in edge:
+                        vertex_code.append(j)
+                        break
+
+            if needs_rotation:
+                new_vertex_code = vertex_code[1:]
+                new_vertex_code.append(vertex_code[0])
+                vertex_code = new_vertex_code
+                
+            PD.append(vertex_code)
+        return spherogram.Link(PD)
 
 def trefoil():
     a, b, c = [MapVertex(x,4) for x in 'abc']
