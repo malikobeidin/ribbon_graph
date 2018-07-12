@@ -262,6 +262,32 @@ class RibbonGraph(object):
             switch_perm = Permutation({label:new_next[label],new_next[label]:label })
             new_next = new_next * switch_perm
         return RibbonGraph([self.opposite, new_next])
+
+    def delete_edges(self, labels):
+        """
+        Given a list of labels, delete the entire edge that each label in the
+        list in on.
+        """
+        labels = set(labels)
+        labels_with_opposite_labels = set()
+        for label in labels:
+            for other_label in self.edge(label):
+                labels_with_opposite_labels.add(other_label)
+        return self.delete_labels(labels_with_opposite_labels)
+
+        
+    def delete_vertices(self, labels):
+        """
+        Given a list of labels, delete the entire vertex that each label in the
+        list in on.
+        """
+        labels = set(labels)
+        labels_with_next_labels = set()
+        for label in labels:
+            for other_label in self.vertex(label):                
+                labels_with_next_labels.add(other_label)
+        return self.delete_labels(labels_with_next_labels)
+        
     
     def delete_labels(self, labels):
         return self.disconnect_edges(labels).disconnect_vertices(labels).remove_labels(labels)
@@ -322,6 +348,7 @@ class RibbonGraph(object):
         union_ribbon_graph = union_ribbon_graph.delete_labels(doubled_edges)
         return union_ribbon_graph
 
+    
     def add_new_vertices(self, vertex_labels, vertex_size):
         """
         Add a new vertex for each label in vertex_labels, with each vertex
@@ -380,8 +407,7 @@ class RibbonGraph(object):
                         vertices.remove(vertex)
 
         return orientations
-
-    
+        
     def draw_strand_along_path(self, start, end, path):
         """
         Given an EmbeddedPath in the DUAL ribbon graph
