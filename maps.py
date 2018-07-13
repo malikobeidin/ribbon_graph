@@ -27,6 +27,7 @@ class MapVertex(object):
         return len(self.next)
         
 class StrandDiagram(object):
+    
     def __init__(self, ribbon_graph, heights, verify=True):
         self.ribbon_graph = ribbon_graph
         self.heights = heights        
@@ -67,6 +68,7 @@ class StrandDiagram(object):
     
         
 class Link(StrandDiagram):
+    
     def __init__(self, vertices=[], PD=[]):
         if PD and not vertices:
             vertices = self._vertices_from_PD(PD)
@@ -95,6 +97,10 @@ class Link(StrandDiagram):
         pass
         
     def spherogram(self):
+        """
+        Return a spherogram Link object.
+        """
+        
         vertices = self.ribbon_graph.vertices()
         edges = self.ribbon_graph.edges()
         PD = []
