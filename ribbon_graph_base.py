@@ -2,6 +2,7 @@ from sage.all import PermutationGroup
 from permutation import Permutation, Bijection, random_permutation
 from cycle import Path, EmbeddedPath, EmbeddedCycle
 from spherogram.links.random_links import map_to_link, random_map
+from random import choice
 import itertools
 
 class RibbonGraph(object):
@@ -305,7 +306,7 @@ class RibbonGraph(object):
         all_labels = connecting_permutation.labels()
         for label in connecting_permutation.labels():
             if self.opposite[label] != label:
-                raise Exception("Trying to connect already connect half edge")
+                raise Exception("Trying to connect already connected half edge")
         new_op = self.opposite.restricted_to(self.opposite.labels()-all_labels)
         return RibbonGraph([new_op*connecting_permutation, self.next])
 
@@ -314,14 +315,24 @@ class RibbonGraph(object):
         new_op = self.opposite.disjoint_union(other_ribbon_graph.opposite)
         new_next = self.next.disjoint_union(other_ribbon_graph.next)
         return RibbonGraph([new_op, new_next])
-
+        
     
     def glue_along_vertex(self, label, other_ribbon_graph, other_label):
         vertex = self.vertex(label)
         other_vertex = other_ribbon_graph.vertex(other_label)
         if len(vertex) != len(other_vertex):
             raise Exception("Must glue along two vertices of same size")        
+        
 
+    def union(self, other_ribbon_graph, pairings):
+        """
+        Take the disjoint union of self and other_ribbon_graph and glue the
+        half edges in pairing together. All of the half edges appearing in
+        pairings must be disconnected.
+        """
+        U = self.disjoint_union(other_ribbon_graph)
+        return U.connect_edges([( (x,0) , (y,1) ) for x,y in pairings])
+        
     def glue_along_face(self, label, other_ribbon_graph, other_label):
         """
         Given two embedded faces (no vertex is encountered twice when walking
@@ -560,6 +571,8 @@ class RibbonGraph(object):
         print("Vertices: {}\nEdges: {}\nFaces: {}".format(self.vertices(), self.edges(), self.faces()))
 
         
+    def random_label(self):
+        return choice(tuple(self.labels()))
         
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
