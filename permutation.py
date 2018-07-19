@@ -129,6 +129,14 @@ class Permutation(Bijection):
         else:
             return label
 
+    def union(self, other_permutation):
+        U = Permutation()
+        for i in self:
+            U[i] = self[i]
+        for i in other_permutation:
+            U[i] = other_permutation[i]
+        return U
+        
     def disjoint_union(self, other_permutation):
         combined = {}
         for label in self:

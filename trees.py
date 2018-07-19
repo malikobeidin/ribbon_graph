@@ -47,7 +47,7 @@ def random_mountain_range(n):
 def remy_random_rooted_binary_plane_tree(n):
     tree = Y()
     for i in range(n):
-        tree = tree.insert_leaf(tree.random_label())
+        tree = tree.insert_leaf_on_edge(tree.random_label())
     return tree
 
 class RootedPlaneTree(RibbonGraph):
@@ -62,21 +62,24 @@ class RootedPlaneTree(RibbonGraph):
             raise Exception("Map is not a tree")
         
 
-    def insert_leaf(self, label):
-        picture_to_insert = open_Y()
-        pairings = [(label,0),(self.opposite[label],1)]
+    def insert_leaf_on_edge(self, label):
+        new_labels = self.make_new_labels(4)
+        picture_to_insert, boundary_labels = open_Y(new_labels)
+        pairings = [(label,boundary_labels[0]),(self.opposite[label],boundary_labels[1])]
         new_tree = self.disconnect_edges([label])
-        new_tree = new_tree.union(picture_to_insert, pairings)
-        return RootedPlaneTree((self.root,0), [new_tree.opposite, new_tree.next])
+        new_tree = new_tree.union(picture_to_insert)
+        new_tree = new_tree.connect_edges(pairings)
+        return RootedPlaneTree(self.root, [new_tree.opposite, new_tree.next])
 
     def relabeled(self):
         R = self.relabeled_by_root(self.root)
         return RootedPlaneTree(1,[R.opposite, R.next])
 
     
-def open_Y():
-    return RootedPlaneTree(0, [Permutation(cycles = [(0,),(1,),(2,3)]) ,
-                            Permutation(cycles = [(0,1,2), (3,)])])
+def open_Y(new_labels):
+    l0,l1,l2,l3 = new_labels
+    return RootedPlaneTree(l0, [Permutation(cycles = [(l0,),(l1,),(l2,l3)]) ,
+                            Permutation(cycles = [(l0,l1,l2), (l3,)])]), (l0,l1)
 
 def Y():
     return RootedPlaneTree(0, [Permutation(cycles = [(0,3),(1,4),(2,5)]) ,

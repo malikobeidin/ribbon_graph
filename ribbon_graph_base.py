@@ -323,15 +323,17 @@ class RibbonGraph(object):
         if len(vertex) != len(other_vertex):
             raise Exception("Must glue along two vertices of same size")        
         
-
-    def union(self, other_ribbon_graph, pairings):
+        
+    def union(self, other_ribbon_graph):
         """
-        Take the disjoint union of self and other_ribbon_graph and glue the
-        half edges in pairing together. All of the half edges appearing in
-        pairings must be disconnected.
+        Combine self and other_ribbon_graph, without forcing the labels to be
+        different as in disjoint_union.
         """
-        U = self.disjoint_union(other_ribbon_graph)
-        return U.connect_edges([( (x,0) , (y,1) ) for x,y in pairings])
+        new_opposite = self.opposite.union(other_ribbon_graph.opposite)
+        new_next = self.next.union(other_ribbon_graph.next)
+        
+        return RibbonGraph([new_opposite, new_next])
+    
         
     def glue_along_face(self, label, other_ribbon_graph, other_label):
         """
