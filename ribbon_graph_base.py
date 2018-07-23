@@ -575,7 +575,37 @@ class RibbonGraph(object):
         
     def random_label(self):
         return choice(tuple(self.labels()))
-        
+
+    def sage(self):
+        from sage.all import Graph
+        G = Graph(multiedges=True, loops=True)
+
+        vertices = map(tuple,self.vertices())
+        edges = map(tuple, self.edges())
+        embedding = {}
+        for vertex in vertices:
+            vertex_order = []
+            for label in vertex:
+                for edge in edges:
+                    if label in edge:
+                        break
+                G.add_edge(vertex,edge)
+                vertex_order.append(edge)
+            embedding[vertex]=vertex_order
+
+        for edge in edges:
+            edge_order = []
+            for label in edge:
+                for vertex in vertices:
+                    if label in vertex:
+                        break
+                edge_order.append(vertex)
+            embedding[edge]=edge_order
+            
+        G.set_embedding(embedding)
+        return G
+
+    
 def random_link_shadow(size, edge_conn=2):
     PD = map_to_link(random_map(size, edge_conn_param=edge_conn)).PD_code()
     return RibbonGraph(PD=PD)
@@ -599,4 +629,27 @@ def loops():
                                 (2,8),
                                 (3,4),
                                 (6,7)])
+    return RibbonGraph([opposite, next])
+
+def cube():
+    next = Permutation(cycles=[(1,2,3),
+                               (4,5,6),
+                               (7,8,9),
+                               (10,11,12),
+                               (13,14,15),
+                               (16,17,18),
+                               (19,20,21),
+                               (22,23,24)])
+    opposite = Permutation(cycles=[(1,5),
+                                   (4,8),
+                                   (7,11),
+                                   (2,10),
+                                   (13,18),
+                                   (16,21),
+                                   (19,24),
+                                   (22,15),
+                                   (3,14),
+                                   (6,17),
+                                   (9,20),
+                                   (12,23)])
     return RibbonGraph([opposite, next])

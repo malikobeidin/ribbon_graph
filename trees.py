@@ -47,7 +47,7 @@ def random_mountain_range(n):
 def remy_random_rooted_binary_plane_tree(n):
     tree = Y()
     for i in range(n):
-        tree = tree.insert_leaf_on_edge(tree.random_label())
+        tree = tree.insert_leaf_on_edge(tree.random_label(), [(i,j) for j in range(4)])
     return tree
 
 class RootedPlaneTree(RibbonGraph):
@@ -62,8 +62,7 @@ class RootedPlaneTree(RibbonGraph):
             raise Exception("Map is not a tree")
         
 
-    def insert_leaf_on_edge(self, label):
-        new_labels = self.make_new_labels(4)
+    def insert_leaf_on_edge(self, label, new_labels):
         picture_to_insert, boundary_labels = open_Y(new_labels)
         pairings = [(label,boundary_labels[0]),(self.opposite[label],boundary_labels[1])]
         new_tree = self.disconnect_edges([label])
