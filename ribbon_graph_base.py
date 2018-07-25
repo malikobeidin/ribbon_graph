@@ -563,7 +563,24 @@ class RibbonGraph(object):
 
             embedded_paths = new_paths
         return [P.complete_to_cycle() for P in embedded_paths if P.is_completable_to_cycle()]
-            
+
+    def search_for_long_embedded_cycles_through(self, start_point, max_length):
+        embedded_paths = [EmbeddedPath(self, start_point, labels = [start_point])]
+        max_length_cycles = []
+        for i in range(max_length-1):
+            new_paths = []
+            for path in embedded_paths:
+                new_paths.extend(path.one_step_continuations())
+
+            if new_paths:
+                embedded_paths = new_paths
+                cycles = [P.complete_to_cycle() for P in embedded_paths if P.is_completable_to_cycle()]
+                if cycles:
+                    max_length_cycles = cycles
+            else:
+                break
+        return max_length_cycles
+
     
     def copy(self):
         return RibbonGraph([Permutation(self.opposite), Permutation(self.next)])
