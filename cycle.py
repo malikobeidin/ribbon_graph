@@ -1,4 +1,4 @@
-
+import itertools
 class Path(object):
     def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = []):
         self.ribbon_graph = ribbon_graph
@@ -112,7 +112,22 @@ class EmbeddedPath(Path):
             if label in self.labels:
                 return []
         return next_vertex[1:]
-        
+
+    def possible_previous_steps(self):
+        start_vertex = self.ribbon_graph.vertex(self.start_label)[1:]
+        op_labels = [self.ribbon_graph.opposite[l] for l in start_vertex]
+        possible_previous_steps = []
+        for label in op_labels:
+            already_have_vertex = False
+            for other_vertex_label in self.ribbon_graph.vertex(label):
+                if other_vertex_label in self.labels:
+                    already_have_vertex = True
+                    break
+            if not already_have_vertex:
+                possible_previous_steps.append(label)
+        return possible_previous_steps
+
+    
     def one_step_continuations(self):
         continuations = []
         for label in self.possible_next_steps():
@@ -121,6 +136,16 @@ class EmbeddedPath(Path):
             continuations.append(EmbeddedPath(self.ribbon_graph, self.start_label, labels = new_labels) )
         return continuations
 
+
+    def concatenate(self, other_embedded_path):
+        if self.ribbon_graph != other_embedded_path.ribbon_graph:
+            raise Exception("To concatenate EmbeddedPaths, must be paths in the same RibbonGraph.")
+        if other_embedded_path.start_label in self.possible_next_steps():
+            new_labels = self.labels[:]
+            new_labels.extend(other_embedded_path.labels)
+            return EmbeddedPath(self.ribbon_graph, self.start_label, new_labels)
+        else:
+            raise Exception("Paths cannot be concatenated.")
     
     def is_completable_to_cycle(self):
         return self.start_label in self.next_vertex()
@@ -136,7 +161,10 @@ class EmbeddedPath(Path):
     def __len__(self):
         return len(self.labels)
 
-        
+
+    def reversed(self):
+        op_labels = list(reversed([self.ribbon_graph.opposite[l] for l in self.labels]))
+        return EmbeddedPath(self.ribbon_graph, op_labels[0], labels = op_labels)
         
 class EmbeddedCycle(Path):
     """
@@ -192,6 +220,16 @@ class EmbeddedCycle(Path):
     def __len__(self):
         return len(self.labels)-1
 
+
+    def starting_at(self, new_start_label):
+        """
+        Start the cycle at new_start_label instead.
+        """
+        i = self.labels.index(new_start_label)
+        new_labels = self.labels[i:-1]
+        new_labels.extend(self.labels[:i])
+        new_labels.append(new_start_label)
+        return EmbeddedCycle(self.ribbon_graph, new_start_label, new_labels)
         
     def left_side_labels(self):
         left_sides = []
@@ -230,3 +268,67 @@ class EmbeddedCycle(Path):
     def reversed(self):
         op_labels = list(reversed([self.ribbon_graph.opposite[l] for l in self.labels]))
         return EmbeddedCycle(self.ribbon_graph, op_labels[0], labels = op_labels)
+
+    def symmetric_difference(self, other_embedded_path):
+        if self.ribbon_graph != other_embedded_path.ribbon_graph:
+            raise Exception("To take symmetric difference, both cycles must be in the same ribbon graph.")
+        label_set = set(self.labels)
+        other_label_set = set(other_embedded_path.labels)
+        symmetric_difference = label_set.symmetric_difference(other_label_set)
+        for start_label in symmetric_difference:
+            break
+        return EmbeddedCycle(self.ribbon_graph, start_label, label_set=symmetric_difference)
+
+    def oriented_sum(self, other_embedded_path):
+        if self.ribbon_graph != other_embedded_path.ribbon_graph:
+            raise Exception("To take symmetric difference, both cycles must be in the same ribbon graph.")
+        label_set = set(self.labels)
+        other_label_set = set(other_embedded_path.labels)
+        new_labels = label_set.union(other_label_set)
+        for label in self.labels:
+            op_label = self.ribbon_graph.opposite[label]
+            if (label in new_labels) and (op_label in new_labels):
+                new_labels.remove(label)
+                new_labels.remove(op_label)
+        for start_label in new_labels:
+            break
+        return EmbeddedCycle(self.ribbon_graph, start_label, label_set=new_labels)
+
+    def split_at_two_points(self, label1, label2):
+        """
+        Split into two EmbeddedPaths, one starting at label1, and going
+        to the label before label2, and the other starting at label2 and going
+        to the label before label1.
+        One should be to do path1.concatenate(path2).complete_to_cycle() to 
+        return to the original cycle.
+        """
+        rotated1 = self.starting_at(label1)
+        dist_1to2 = rotated1.labels.index(label2)
+        labels1 = rotated1.labels[ : dist_1to2 ]
+
+        rotated2 = self.starting_at(label2)
+        dist_2to1 = rotated2.labels.index(label1)
+        labels2 = rotated2.labels[ : dist_2to1 ]
+
+        return EmbeddedPath(self.ribbon_graph, label1, labels = labels1), EmbeddedPath(self.ribbon_graph, label2, labels = labels2)
+    
+    def split_along_path(self, splitting_path):
+        """
+        Given an EmbeddedPath going through starting on the left side of
+        the boundary, and ending on the left side of the boundary, use this 
+        path to split self into two cycles which each have a portion of self.
+        boundary.
+        """
+        for label1 in splitting_path.possible_next_steps():
+            if label1 in self.labels:
+                break
+        start_vertex = splitting_path.ribbon_graph.vertex(splitting_path.labels[0]) 
+        for label2 in start_vertex:
+            if label2 in self.labels:
+                break
+
+        boundary1, boundary2 = self.split_at_two_points(label1, label2)
+        cycle1 = splitting_path.concatenate(boundary1).complete_to_cycle()
+        cycle2 = splitting_path.reversed().concatenate(boundary2).complete_to_cycle()
+
+        return cycle1, cycle2
