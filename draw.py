@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from cycle import EmbeddedCycle
+from decompositions import CycleTree
 
 def draw_with_plink(ribbon_graph):
     pass
@@ -95,3 +97,78 @@ class TutteSpringEmbedding(object):
             plt.plot(edge_x, edge_y, color='blue')
 
         plt.savefig(filename+'.png')
+
+
+class PolygonDrawing(object):
+    def __init__(self, vertices):
+        self.vertices = vertices
+        self.n = len(vertices)
+
+        self.min_x = min(x for x,y in vertices)
+        self.min_y = min(y for x,y in vertices)
+        self.max_x = max(x for x,y in vertices)
+        self.max_y = max(y for x,y in vertices)
+    
+    def barycentric_coordinates(self, p):
+        weights = np.zeros(self.n)
+        for i, vertex in enumerate(self.vertices):
+            previous_vertex = self.vertices[(i-1)%self.n]
+            next_vertex = self.vertices[(i+1)%self.n]
+            prev_cot = self._cotangent(p, vertex, previous_vertex)
+            next_cot = self._cotangent(p, vertex, next_vertex)
+            dist = np.sum((p-vertex)*(p-vertex))
+            weights[i] = (prev_cot + next_cot) / dist
+        weights = weights/sum(weights)
+        return weights
+
+    def diagonal_linear_system(self, i, j):
+        pass
+
+    def trace_diagonal(self, i, j, stepsize, distance_goal=.01):
+        """
+        Start at vertex i and step in the diagonal direction until you reach
+        vertex j.
+        """
+        pass
+        
+    
+    def diagonal(self, i, j, epsilon = .001, sample_points = 100):
+        diagonal_points = []
+        for x in np.linspace(self.min_x, self.max_x, sample_points):
+            for y in np.linspace(self.min_y, self.max_y, sample_points):
+                weights = self.barycentric_coordinates( np.array([x,y]) )
+                is_diagonal = True
+                for k, w in enumerate(weights):
+                    if k not in [i,j]:
+                        if w > epsilon:
+                            is_diagonal = False
+                            break
+                if is_diagonal:
+                    diagonal_points.append( np.array([x,y]) )
+        return diagonal_points
+                        
+        
+    
+    def triangulate(self):
+        pass
+    
+    def barycentric_subdivision(self, triangulation):
+        pass
+
+    def parametrization(self, num_subdivisions):
+        pass
+    
+    def _cotangent(self, a, b, c):
+        ba = a-b
+        bc = c-b
+        dot = sum(bc*ba)
+        det = np.linalg.det(np.array([bc,ba]))
+        return dot/abs(det)
+        
+class GluedPolygonalDrawing(object):
+    def __init__(self, ribbon_graph, exterior_label, max_length):
+        exterior_face = ribbon_graph.face(exterior_label)
+        cycle = EmbeddedCycle(ribbon_graph, exterior_label, turn_degrees=[-1]*len(exterior_face)).reversed()
+        self.cycle_tree = CycleTree(cycle, max_length)
+
+    
