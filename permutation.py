@@ -11,6 +11,15 @@ class Bijection(dict):
             assert len(self.domain) == len(self.codomain)
 
     def __setitem__(self, label, output_label):
+#        if label in self.domain:
+#            raise Exception("Cannot change function value at {}".format(label))
+#        if output_label in self.codomain:
+#            raise Exception("Output {} already in codomain ".format(output_label))
+        super(Bijection,self).__setitem__(label,output_label)
+        self.domain.add(label)
+        self.codomain.add(output_label)
+
+    def add_label(self, label, output_label):
         if label in self.domain:
             raise Exception("Cannot change function value at {}".format(label))
         if output_label in self.codomain:
@@ -19,9 +28,17 @@ class Bijection(dict):
         self.domain.add(label)
         self.codomain.add(output_label)
 
+    def remove_label(self, label):
+        output = self.pop(label)
+        self.domain.remove(label)
+        self.codomain.remove(output)
+        
+        
     def __repr__(self):
         return ''.join(['{}->{}\n'.format(label,self[label]) for label in self])
 
+
+    
     def act(self, label):
         if label not in self:
             return label
@@ -60,8 +77,8 @@ class Permutation(Bijection):
 
     def add_cycle(self,cycle):
         for i in range(len(cycle)):
-            self[cycle[i]] = cycle[(i+1)%len(cycle)]
-            Permutation()
+            self.add_label(cycle[i], cycle[(i+1)%len(cycle)])
+#            self[cycle[i]] = cycle[(i+1)%len(cycle)]
         
     def verify(self):
         assert self.domain == self.codomain
@@ -129,6 +146,87 @@ class Permutation(Bijection):
         else:
             return label
 
+    def undo_two_cycle(self, label):
+        """
+        If label is in a two-cycle, then force label and self[label] to be
+        fixed points of self. This will correspond to cutting an edge in a 
+        RibbonGraph. Note that this does not make a new permutation object,
+        it alters the internal data of self.
+        """
+        cycle = self.cycle(label)
+        if len(cycle) == 2:
+            for l in cycle:
+                self[l] = l 
+        else:
+            raise Exception("Given label not in 2-cycle")
+        
+    def insert_between(self, new_label, previous_label):
+        """
+        Insert new_label into the cycle containing previous_label, between 
+        previous_label and self[previous_label]. That is, change
+
+        previous_label --> self[previous_label]
+        
+        to
+        
+        previous_label --> new_label --> self[previous_label]
+
+        This function does not make a new Permutation; it alters self.
+        new_label must not be already in the permutation.
+        """
+        if new_label in self.labels():
+            raise Exception("Cannot insert label because it is already used in the permutation")
+        self[new_label] = self[previous_label]
+        self[previous_label] = new_label
+        
+    def split_cycle_at(self, label1, label2):
+        """
+        Takes two labels on the same cycle and splits the cycle into two.
+        It short-circuits the cycle after label1 to skip to the label after
+        label2, and vice versa. Here's an example:
+
+        sage: P = Permutation(cycles = [(1,2,3,4,5)])
+        sage: P.split_cycle_at(3,5)
+        sage: P.cycles()
+        [[1, 2, 3], [4, 5]]
+
+        This will correspond to splitting a vertex for ribbon graphs. This
+        function doesn't make a new permutation, it alters self.
+        """
+        if label2 not in self.cycle(label1):
+            raise Exception("The two labels are not on the same cycle.")
+        label1_next = self[label1]
+        label2_next = self[label2]
+
+        self[label1] = label2_next
+        self[label2] = label1_next
+
+    def merge_cycles_at(self, label1, label2):
+        """
+        Takes two labels on different cycles and merge the cycles into one.
+        It short-circuits the cycle after label1 to skip to the label after
+        label2, and vice versa. Here's an example:
+
+        sage: P = Permutation(cycles = [(1,2,3,4,5)])
+        sage: P.split_cycle_at(3,5)
+        sage: P.cycles()
+        [[1, 2, 3], [4, 5]]
+
+        This will correspond to merging a vertex for ribbon graphs. This
+        function doesn't make a new permutation, it alters self.
+        """
+        if label2 in self.cycle(label1):
+            raise Exception("The two labels are on the same cycle.")
+        label1_next = self[label1]
+        label2_next = self[label2]
+
+        self[label1] = label2_next
+        self[label2] = label1_next
+
+    def remove_cycle(self, label):
+        for l in self.cycle(label):
+            self.remove_label(l)
+        
     def union(self, other_permutation):
         U = Permutation()
         for i in self:
