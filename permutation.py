@@ -74,7 +74,7 @@ class Permutation(Bijection):
         combined_labels = self.labels().union(other_permutation.labels())
         return Permutation({label: other_permutation.act(self.act(label)) for label in combined_labels })
 
-
+    
     def add_cycle(self,cycle):
         for i in range(len(cycle)):
             self.add_label(cycle[i], cycle[(i+1)%len(cycle)])
@@ -113,6 +113,13 @@ class Permutation(Bijection):
     def inverse(self):
         return Permutation({self[label]:label for label in self})
 
+    def previous(self, label):
+        """
+        Return the element which is sent to label. Hopefully faster than
+        computing the entire inverse.
+        """
+        return self.cycle(label)[-1]
+    
     def restricted_to(self, labels):
         for label in labels:
             assert self[label] in labels
@@ -192,6 +199,9 @@ class Permutation(Bijection):
 
         This will correspond to splitting a vertex for ribbon graphs. This
         function doesn't make a new permutation, it alters self.
+
+        Equivalent to multiplying on the left by the transposition
+        (label1 label2)
         """
         if label2 not in self.cycle(label1):
             raise Exception("The two labels are not on the same cycle.")
@@ -201,6 +211,12 @@ class Permutation(Bijection):
         self[label1] = label2_next
         self[label2] = label1_next
 
+    def split_label_from_cycle(self, label):
+        """
+        Takes a single label and disconnect from the rest of its cycle. 
+        """
+        self.split_cycle_at(label, self.previous(label))
+        
     def merge_cycles_at(self, label1, label2):
         """
         Takes two labels on different cycles and merge the cycles into one.
@@ -214,6 +230,10 @@ class Permutation(Bijection):
 
         This will correspond to merging a vertex for ribbon graphs. This
         function doesn't make a new permutation, it alters self.
+
+        Equivalent to multiplying on the left by the transposition
+        (label1 label2)
+
         """
         if label2 in self.cycle(label1):
             raise Exception("The two labels are on the same cycle.")
@@ -226,7 +246,13 @@ class Permutation(Bijection):
     def remove_cycle(self, label):
         for l in self.cycle(label):
             self.remove_label(l)
-        
+
+    def remove_fixed_point(self, label):
+        if label == self[label]:
+            self.remove_label(label)
+        else:
+            raise Exception("Given label not a fixed point.")
+            
     def union(self, other_permutation):
         U = Permutation()
         for i in self:

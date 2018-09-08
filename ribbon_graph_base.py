@@ -14,9 +14,6 @@ class RibbonGraph(object):
     edge. 'next' determines which half-edge is the next counterclockwise 
     half-edge on the same vertex.
 
-    The permutation next_corner is simply the product of opposite and next, and
-    is used frequently, so it is computed when the object is instantiated. It is
-    used to determine the faces of a RibbonGraph.
     """
     
     def __init__(self, permutations=[], PD = []):
@@ -25,8 +22,7 @@ class RibbonGraph(object):
         if PD:
             opposite, next = self._permutations_from_PD(PD)
         self.opposite = opposite
-        self.next = next        
-        self.next_corner = self.opposite * self.next.inverse()
+        self.next = next
 
         
     def __repr__(self):
@@ -80,6 +76,18 @@ class RibbonGraph(object):
 
         return first_edges
 
+    def _cache_next_corner(self):
+        self.next_corner = self.opposite * self.next.inverse()
+
+    def next_corner(self):
+        """
+        next_corner is the permutation that determines the faces of the
+        ribbon_graph. The permutation records the order of labels around
+        a face, oriented so that the face is to the left of the sequence
+        of half edge labels.
+        """
+        return self.opposite * self.next.inverse()
+        
     def connected_component(self, label):
         """
         Return all labels in the connected component of label. That is, all
@@ -171,12 +179,13 @@ class RibbonGraph(object):
 
     def face(self, label):
         """
-        The face containing label.
+        The face containing label. The faces are oriented so that the sequence
+        of labels have the face to their LEFT side.
         """
-        return self.next_corner.cycle(label)
+        return self.next_corner().cycle(label)
     
     def faces(self):
-        return self.next_corner.cycles()
+        return self.next_corner().cycles()
 
     def euler_characteristic(self):
         return len(self.vertices()) - len(self.edges()) + len(self.faces())
@@ -219,7 +228,7 @@ class RibbonGraph(object):
         permutation.
         """
         
-        return RibbonGraph(permutations=[self.opposite, self.next_corner])
+        return RibbonGraph(permutations=[self.opposite, self.next_corner()])
 
     def mirror(self):
         """
@@ -482,8 +491,8 @@ class RibbonGraph(object):
         return PermutationGroup([op,next])
 
     def medial_map(self):
-        next_corner = self.next_corner
-        next_corner_inverse = self.next_corner.inverse()
+        next_corner = self.next_corner()
+        next_corner_inverse = next_corner.inverse()
         labels = self.labels()
         new_next_dict = {}
         for i in labels:
