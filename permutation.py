@@ -167,9 +167,9 @@ class Permutation(Bijection):
         else:
             raise Exception("Given label not in 2-cycle")
         
-    def insert_between(self, new_label, previous_label):
+    def insert_after(self, previous_label, new_label):
         """
-        Insert new_label into the cycle containing previous_label, between 
+        Insert new_label into the cycle containing previous_label, between
         previous_label and self[previous_label]. That is, change
 
         previous_label --> self[previous_label]
@@ -268,8 +268,27 @@ class Permutation(Bijection):
         for label in other_permutation:
             combined[(label,1)] = (other_permutation[label],1)
         return Permutation(combined)
-        
-        
+
+    def is_identity(self):
+        for label in self:
+            if self[label] != label:
+                return False
+        return True
+
+    def make_commute_along_cycles(self, smaller_permutation):
+        """
+        Given a permutation which acts on a subset of self.labels, try and 
+        extend the smaller permutation to a permutation on all of self.labels
+        which commutes with self.
+        """
+        for label in smaller_permutation.labels():
+            label_cycle = self.cycle(label)
+            pushed_label_cycle = self.cycle(smaller_permutation[label])
+            for l1, l2 in zip(label_cycle,pushed_label_cycle):
+                smaller_permutation[l1]=[l2]
+        return smaller_permutation
+            
+    
 def permutation_from_bijections(bijections):
     B = Bijection()
     for bijection in bijections:

@@ -86,6 +86,7 @@ class RibbonGraph(object):
         a face, oriented so that the face is to the left of the sequence
         of half edge labels.
         """
+
         return self.opposite * self.next.inverse()
         
     def connected_component(self, label):
@@ -181,7 +182,10 @@ class RibbonGraph(object):
         """
         The face containing label. The faces are oriented so that the sequence
         of labels have the face to their LEFT side.
+        Theoretically, this could be redone so as to not compute next_corner
+        entirely.
         """
+
         return self.next_corner().cycle(label)
     
     def faces(self):
@@ -342,7 +346,7 @@ class RibbonGraph(object):
         new_next = self.next.union(other_ribbon_graph.next)
         
         return RibbonGraph([new_opposite, new_next])
-    
+
         
     def glue_along_face(self, label, other_ribbon_graph, other_label):
         """
@@ -372,6 +376,35 @@ class RibbonGraph(object):
 
         union_ribbon_graph = union_ribbon_graph.delete_labels(doubled_edges)
         return union_ribbon_graph
+
+    def glue_faces(self, label, other_label):
+        """
+        Given two embedded faces (no vertex is encountered twice when walking
+        around boundary) of the same size on two different ribbon graphs,
+        glue along that boundary cycle so that label in self ends up
+        connected to (an opposite) other_label in other_ribbon_graph.
+        """
+        
+        face_length = len(self.face(label))
+        if len(self.face(other_label)) != face_length:
+            raise Exception("Faces must have same size")
+        cycle = EmbeddedCycle(self, label, turn_degrees = [-1]*face_length)
+        other_cycle = EmbeddedCycle(self, other_label, turn_degrees = [-1]*face_length).reversed()
+        #union_ribbon_graph = self.disjoint_union(self)
+        for l, ol in zip(cycle.labels[:-1], other_cycle.labels[:-1]):
+            nl, nol = self.next[l], self.next[ol]
+            #the following function glues two vertices in the slots BEFORE
+            #the given labels. So, need to shift them by one first, as above.
+            self = self.vertex_merge_unmerge(nl,nol)
+        #Edges on mutual boundary are now doubled, need to cut half of them.
+        #we cut the ones from self, as a convention.
+        doubled_edges = []
+        for ol in other_cycle.labels[:-1]:
+            doubled_edges.append(ol)
+            doubled_edges.append(self.opposite[ol])
+
+        return self.delete_labels(doubled_edges)
+        
 
     
     def add_new_vertices(self, vertex_labels, vertex_size):
