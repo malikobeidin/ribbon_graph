@@ -9,19 +9,16 @@ class Triangulation(object):
                glued_to: a permutation which shows which faces are glued. A directed edge in a tetrahedron uniquely specifies how to glue two faces, by gluing the faces to the left of each directed edge. This permutation must commute with the next_corner permutation of the tetrahedra_ribbon_graph to make it so that faces are glued consistently.
         """
         self.tetrahedra_ribbon_graph = tetrahedra_ribbon_graph
-        if check_consistency:
+        if check_consistency:            
             next_corner = self.tetrahedra_ribbon_graph.next_corner()
-            glued_to = next_corner.inverse() * glued_to * next_corner
-            commutator = next_corner*glued_to*next_corner.inverse()*glued_to.inverse()
-            if not commutator.is_identity():
-                raise Exception("Gluing not consistent along faces")
-        
+            glued_to = next_corner.make_commute_along_cycles(glued_to)
+        self.glued_to = glued_to
 
     def tetrahedra(self):
         return self.tetrahedra_ribbon_graph.connected_components()
 
     def vertex_links(self):
-        return RibbonGraph([self.glued_to, self.next])
+        return RibbonGraph([self.glued_to, self.tetrahedra_ribbon_graph.next])
 
 def tetrahedron(tet_label):
     

@@ -281,11 +281,17 @@ class Permutation(Bijection):
         extend the smaller permutation to a permutation on all of self.labels
         which commutes with self.
         """
+        smaller_permutation = Permutation(smaller_permutation.copy())
         for label in smaller_permutation.labels():
             label_cycle = self.cycle(label)
             pushed_label_cycle = self.cycle(smaller_permutation[label])
+            if len(label_cycle) != len(pushed_label_cycle):
+                raise Exception("The permutation can't be extended to commute.")
             for l1, l2 in zip(label_cycle,pushed_label_cycle):
-                smaller_permutation[l1]=[l2]
+                if l1 in smaller_permutation:
+                    if smaller_permutation[l1] != l2:
+                        raise Exception("The permutation can't be extended to commute.")
+                smaller_permutation[l1]=l2
         return smaller_permutation
             
     
