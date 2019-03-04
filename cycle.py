@@ -258,7 +258,19 @@ class EmbeddedCycle(Path):
             right_sides.append(right_side_labels)
         return right_sides
 
+    def with_previous_labels(self):
+        opposites = [self.ribbon_graph.opposite[l] for l in self.labels]
+        opposites.append(opposites.pop(0))
+        return zip(self.labels,opposites)
+
     
+    def cut(self):
+        R = self.ribbon_graph
+        
+        for l, o in self.with_previous_labels():
+            R = R.vertex_merge_unmerge(l,self.ribbon_graph.next[o])
+        return R
+        
     def left_side(self):
         R = self.ribbon_graph.copy()
         right_side_labels = [l for labels in self.right_side_labels() for l in labels]

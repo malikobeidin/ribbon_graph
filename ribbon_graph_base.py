@@ -255,7 +255,7 @@ class RibbonGraph(object):
         indices = {l:i for i,l in enumerate(labels)}
         new_op = Permutation({i:indices[self.opposite[labels[i]]] for i in range(len(labels))})
         new_next = Permutation({i:indices[self.next[labels[i]]] for i in range(len(labels))})
-        return RibbonGraph(new_op,new_next)
+        return RibbonGraph([new_op,new_next])
 
 
     def disconnect_edges(self, labels):
@@ -710,6 +710,24 @@ def loops():
                                 (3,4),
                                 (6,7)])
     return RibbonGraph([opposite, next])
+
+def torus():
+    next = Permutation(cycles=[(1,2,3,4)])
+    opposite = Permutation(cycles=[(1,3),
+                                   (2,4)])
+    return RibbonGraph([opposite, next])
+    
+def disk_with_handles(pairing):
+    s = set()
+    for x,y in pairing:
+        s.add(x)
+        s.add(y)
+    l = sorted(s)
+    next = Permutation(cycles=[l])
+    opposite = Permutation(cycles=pairing)
+    return RibbonGraph([opposite,next])
+    
+
 
 def cube():
     next = Permutation(cycles=[(1,2,3),

@@ -260,7 +260,15 @@ class Permutation(Bijection):
         for i in other_permutation:
             U[i] = other_permutation[i]
         return U
-        
+
+    def append_label(self, extra_label):
+        """
+        Append an addition specified label onto every label in the permutation.
+        L --> (L, extra_label)
+        """
+        return Permutation({(label,extra_label):(self[label],extra_label) for label in self})
+            
+    
     def disjoint_union(self, other_permutation):
         combined = {}
         for label in self:
