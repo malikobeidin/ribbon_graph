@@ -33,7 +33,128 @@ class Triangulation(object):
     def vertex_links(self):
         return RibbonGraph([self.glued_to, self.tetrahedra_ribbon_graph.next.inverse()])
 
+class TruncatedTetrahedron(object):
+    def __init__(self, tet):
+        self.tetrahedron = tet
+        self.ribbon_graph = truncate_vertices(tetrahedron())
+        self.pairing = self.snappy_tetrahedron_to_edge_pairing()
+        self.labeled = self.labeled_ribbon_graph()
+        
+    def vertex(self, directed_edge):
+        """
+        From a directed edge 'ab', get the vertex in the truncated tetrahedron
+        which has this vertex. Each directed edge in the original tetrahedron
+        corresponds to a vertex in the truncated tetrahedron.
+        """
+        return self.ribbon_graph.vertex(directed_edge)
+    
+    def boundary_edge_from_directed_edge(self, directed_edge):
+        """
+        Return a label on the triangular face on which the vertex corresponding
+        to directed_edge is located.
+        """
+        return self.ribbon_graph.next[directed_edge]
+
+    def snappy_tetrahedron_to_edge_pairing(self):
+        tet = self.tetrahedron
+        gluing = tet.Gluing
+        neighbor = tet.Neighbor
+
+        directed_edge_choices = ['01','10','23','32']        
+        corresponding_left_faces = [7, 11, 13, 14]
+
+        permutations = [Permutation(gluing[i].dict) for i in corresponding_left_faces]
+        corresponding_neighbors = [neighbor[i].Index for i in corresponding_left_faces]
+        pairing = []
+        for e, perm, index in zip(directed_edge_choices,permutations, corresponding_neighbors):
+            vs = self.boundary_edge_from_directed_edge(e)
+            new_vs = [str(perm[int(v)]) for v in vs]
+            new_vs = ''.join([new_vs[2], new_vs[3], new_vs[0], new_vs[1]])
+            pairing.append( (str(tet.Index)+vs, str(index)+new_vs) )
+        return pairing
+
+    def labeled_ribbon_graph(self):
+        l = str(self.tetrahedron.Index)
+        new_opposite = {(l+i):(l+self.ribbon_graph.opposite[i]) for i in self.ribbon_graph.opposite}
+        new_next = {(l+i):(l+self.ribbon_graph.next[i]) for i in self.ribbon_graph.next}
+        
+        return RibbonGraph([Permutation(new_opposite), Permutation(new_next)])
+
+def heegaard_surface(mcomplex):
+    truncated_tets = [TruncatedTetrahedron(tet) for tet in mcomplex.Tetrahedra]
+    truncated_tet = truncated_tets.pop()
+    R = truncated_tet.labeled
+    pairings = [truncated_tet.pairing]
+    for truncated_tet in truncated_tets:
+        R = R.union(truncated_tet.labeled)
+        pairings.append(truncated_tet.pairing)
+    print(pairings)
+    
+    for pairing in pairings:
+        for label1, label2 in pairing:
+            labels = R.labels()
+            if (label1 in labels) and (label2 in labels):            
+                R = R.glue_faces(label1, label2)
+    return R
+    
+
+
+N   = 0  # 0000
+V0  = 1  # 0001
+V1  = 2  # 0010
+E01 = 3  # 0011 <-----|
+V2  = 4  # 0100       |
+E02 = 5  # 0101 <---| |
+E21 = 6  # 0110 <-| | |
+F3  = 7  # 0111   | | |
+V3  = 8  # 1000   | | |  Opposite edges
+E03 = 9  # 1001 <-| | |
+E13 = 10 # 1010 <---| |
+F2  = 11 # 1011       |
+E32 = 12 # 1100 <-----|
+F1  = 13 # 1101
+F0  = 14 # 1110
+T   = 15 # 1111
+
+# User-friendly?
+
+E10 = 3
+E20 = 5
+E12 = 6
+E30 = 9
+E31 = 10
+E23 = 12
+
+
+# A simplex is oriented like this:  
+#     1     
+#    /|\    
+#   / | \   
+#  /  |  \  
+# 2---|---3 
+#  \  |  /  
+#   \ | /   
+#    \|/    
+#     0
+#
+
 def tetrahedron(label=None):
+    next = Permutation(cycles=[('01','02','03'),
+                               ('12','10','13'),
+                               ('20','21','23'),
+                               ('30','32','31')])
+    opposite = Permutation(cycles=[('01','10'),
+                                   ('02','20'),
+                                   ('03','30'),
+                                   ('12','21'),
+                                   ('13','31'),
+                                   ('23','32')])
+    if label:
+        return RibbonGraph([opposite.append_label(label), next.append_label(label)])
+    else:
+        return RibbonGraph([opposite, next])
+    
+def tetrahedron_old(label=None):
     next = Permutation(cycles=[((0,1),(0,3),(0,2)),
                                ((1,2),(1,3),(1,0)),
                                ((2,0),(2,3),(2,1)),
@@ -50,6 +171,24 @@ def tetrahedron(label=None):
         return RibbonGraph([opposite, next])
 
 def truncate_vertices(ribbon_graph):
+    new_opposite = dict(ribbon_graph.opposite)
+    next_inverse = ribbon_graph.next.inverse()
+    new_next = {}
+    for label in ribbon_graph.labels():
+        next_label = ribbon_graph.next[label]
+        previous_label = next_inverse[label]
+        new_next[label]= label+next_label
+        new_next[label+previous_label]= label
+        new_next[label+next_label]= label+previous_label
+        new_opposite[label+next_label]=next_label+label
+        new_opposite[next_label+label]=label+ next_label
+
+    new_opposite  = Permutation(new_opposite)
+    new_next = Permutation(new_next)
+    return RibbonGraph(permutations=[new_opposite,new_next])
+
+    
+def truncate_vertices_old(ribbon_graph):
     new_opposite = dict(ribbon_graph.opposite)
     next_inverse = ribbon_graph.next.inverse()
     new_next = {}
@@ -109,6 +248,9 @@ def triangulation_from_tuples(tuples):
 
     gluing = Permutation(cycles=parsed)
     return Triangulation(U, gluing)
+
+
+
 
 
 def doubled():
