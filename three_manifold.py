@@ -36,7 +36,7 @@ class Triangulation(object):
 class TruncatedTetrahedron(object):
     def __init__(self, tet):
         self.tetrahedron = tet
-        self.ribbon_graph = truncate_vertices(tetrahedron())
+        self.ribbon_graph = truncate_vertices(tetrahedron().dual())
         self.pairing = self.snappy_tetrahedron_to_edge_pairing()
         self.labeled = self.labeled_ribbon_graph()
         
@@ -55,22 +55,33 @@ class TruncatedTetrahedron(object):
         """
         return self.ribbon_graph.next[directed_edge]
 
+    def boundary_triangle_from_directed_edge(self, directed_edge):
+        return self.ribbon_graph.face(self.ribbon_graph.next[directed_edge])
+
     def snappy_tetrahedron_to_edge_pairing(self):
         tet = self.tetrahedron
         gluing = tet.Gluing
         neighbor = tet.Neighbor
 
-        directed_edge_choices = ['01','10','23','32']        
-        corresponding_left_faces = [7, 11, 13, 14]
+        directed_edge_choices = ['32','23','10','01']
+        corresponding_left_faces = [7, 11, 13, 14] #[F3, F2, F1, F0]
 
         permutations = [Permutation(gluing[i].dict) for i in corresponding_left_faces]
         corresponding_neighbors = [neighbor[i].Index for i in corresponding_left_faces]
         pairing = []
         for e, perm, index in zip(directed_edge_choices,permutations, corresponding_neighbors):
+            print(tet.Index, index)
+            print(perm)
             vs = self.boundary_edge_from_directed_edge(e)
-            new_vs = [str(perm[int(v)]) for v in vs]
-            new_vs = ''.join([new_vs[2], new_vs[3], new_vs[0], new_vs[1]])
+            new_e = ''.join(reversed([str(perm[int(v)]) for v in e]))
+            new_vs = self.boundary_edge_from_directed_edge(new_e)
+#            new_vs = ''.join([new_vs[2], new_vs[3], new_vs[0], new_vs[1]])
+
+            print(e,new_e)
+            print(vs, new_vs)
+            print(self.ribbon_graph.face(vs), self.ribbon_graph.face(new_vs))
             pairing.append( (str(tet.Index)+vs, str(index)+new_vs) )
+            print('\n\n')
         return pairing
 
     def labeled_ribbon_graph(self):
@@ -79,6 +90,8 @@ class TruncatedTetrahedron(object):
         new_next = {(l+i):(l+self.ribbon_graph.next[i]) for i in self.ribbon_graph.next}
         
         return RibbonGraph([Permutation(new_opposite), Permutation(new_next)])
+
+
 
 def heegaard_surface(mcomplex):
     truncated_tets = [TruncatedTetrahedron(tet) for tet in mcomplex.Tetrahedra]
@@ -89,7 +102,11 @@ def heegaard_surface(mcomplex):
         R = R.union(truncated_tet.labeled)
         pairings.append(truncated_tet.pairing)
     print(pairings)
-    
+    all_face_labels = []
+    for pairing in pairings:
+        for label1, label2 in pairing:
+            all_face_labels.append((R.face(label1), R.face(label2)))
+    print(all_face_labels)
     for pairing in pairings:
         for label1, label2 in pairing:
             labels = R.labels()
@@ -170,6 +187,155 @@ def tetrahedron_old(label=None):
     else:
         return RibbonGraph([opposite, next])
 
+def snappy_tetrahedron_to_face_gluings(snappy_tetrahedron):
+    directed_edge_choices = ['01','10','23','32']
+    corresponding_left_faces = [7, 11, 13, 14] #[F3, F2, F1, F0]
+    permutations = [Permutation(snappy_tetrahedron.Gluing[i].dict) for i in corresponding_left_faces]
+    neighbor_indices = [snappy_tetrahedron.Neighbor[i].Index for i in corresponding_left_faces]
+    T = tetrahedron()
+    face_pairing = []
+    edge_pairing = []
+    face_label_pairing = []
+    i = snappy_tetrahedron.Index
+    
+    for directed_edge, permutation, neighbor_i in zip(directed_edge_choices, permutations, neighbor_indices):
+
+        
+        directed_edge_permuted = ''.join(reversed([str(permutation[int(s)]) for s in directed_edge]))
+        edge_pairing.append([(i,directed_edge), (neighbor_i,directed_edge_permuted)])
+        face_pairing.append([(i,T.face(directed_edge)), (neighbor_i,T.face(directed_edge_permuted))])
+        missing_label = set('0123')-set(T.face(directed_edge)[0])-set(T.face(directed_edge)[1])-set(T.face(directed_edge)[2])
+        missing_label = missing_label.pop()
+        missing_neighbor_label = set('0123')-set(T.face(directed_edge_permuted)[0])-set(T.face(directed_edge_permuted)[1])-set(T.face(directed_edge_permuted)[2])
+        missing_neighbor_label = missing_neighbor_label.pop()
+        face_label_pairing.append(['F{} of tet{}'.format(missing_label, i),'F{} of tet{}'.format(missing_neighbor_label, neighbor_i)])
+
+    return  face_label_pairing
+
+class Tetrahedron(object):
+    def __init__(self, snappy_tetrahedron):
+        self.ribbon_graph = tetrahedron()
+        self.cut_ribbon_graph = truncate_vertices(thicken_edges(tetrahedron()))
+        self.snappy_tetrahedron = snappy_tetrahedron
+        self.snappy_label_to_code = {0:14, 1:13, 2:11, 3:7}
+
+    def face_from_missing_vertex(self, v):
+        if v == 0:
+            return self.ribbon_graph.face('32')
+        elif v == 1:
+            return self.ribbon_graph.face('23')
+        elif v == 2:
+            return self.ribbon_graph.face('10')
+        elif v == 3:
+            return self.ribbon_graph.face('01')
+        else:
+            raise Exception()
+
+    def face_from_snappy_label(self, i):
+        if i == 14:
+            return self.ribbon_graph.face('32')
+        elif i == 13:
+            return self.ribbon_graph.face('23')
+        elif i == 11:
+            return self.ribbon_graph.face('10')
+        elif i == 7:
+            return self.ribbon_graph.face('01')
+        else:
+            raise Exception()
+
+    def edge_mapping(self):
+        mappings = []
+        tet_index = str(self.snappy_tetrahedron.Index)
+        for i in [14,13,11,7]:
+            assert self.snappy_tetrahedron.Gluing[i].sign() == 1
+            perm = Permutation(self.snappy_tetrahedron.Gluing[i].dict)
+            neighbor = str(self.snappy_tetrahedron.Neighbor[i].Index)
+            face = self.face_from_snappy_label(i)
+            edge_mapping = {}
+            for directed_edge in face:
+                directed_edge_permuted = ''.join([str(perm[int(s)]) for s in directed_edge])
+                directed_edge_permuted = self.ribbon_graph.opposite[directed_edge_permuted]
+                edge_mapping[tet_index+'|'+directed_edge]=neighbor+'|'+directed_edge_permuted
+            mappings.append(edge_mapping)
+        return mappings
+
+    def face_pairing(self):
+
+        face_mapping = {}
+        tet_index = str(self.snappy_tetrahedron.Index)
+        for i in range(4):
+            code = self.snappy_label_to_code[i]
+            assert self.snappy_tetrahedron.Gluing[code].sign() == 1
+            perm = Permutation(self.snappy_tetrahedron.Gluing[code].dict)
+            neighbor = str(self.snappy_tetrahedron.Neighbor[code].Index)
+            directed_edge = self.face_from_missing_vertex(i)[0]
+            directed_edge_permuted = ''.join([str(perm[int(s)]) for s in directed_edge])
+            directed_edge_permuted = self.ribbon_graph.opposite[directed_edge_permuted]
+            opposite_face = self.snappy_label_from_face(directed_edge_permuted)
+            face_mapping['F{} of tet{}'.format(i,tet_index)]='F{} of tet{}'.format(opposite_face,neighbor)
+
+        return face_mapping
+
+    def snappy_label_from_face(self, directed_edge):
+        face = self.ribbon_graph.face(directed_edge)
+        v = set('0123')
+        for l in face:
+            v = v-set(l)
+        return v.pop()
+
+    def directed_edge_to_cut_face_label(self, directed_edge):
+        return directed_edge+'_1'
+
+    def edge_mapping_on_cut_faces(self):
+        edge_mapping = self.edge_mapping()
+        return [{i+'_1':j+'_1' for i,j in mapping.items()} for mapping in edge_mapping]
+
+
+    def with_tet_label(self):
+        si = str(self.snappy_tetrahedron.Index)+'|'
+        op = self.cut_ribbon_graph.opposite
+        new_op = Permutation({si+label : si+op[label] for label in op})
+        next = self.cut_ribbon_graph.next
+        new_next = Permutation({si+label : si+next[label] for label in next})
+        return RibbonGraph([new_op,new_next])
+    
+class TriangulationSkeleton(object):
+    def __init__(self, mcomplex):
+        self.tetrahedra = [Tetrahedron(tet) for tet in mcomplex.Tetrahedra]
+
+        self.ribbon_graph = RibbonGraph([Permutation(), Permutation()])
+        for tet in self.tetrahedra:
+            self.ribbon_graph = self.ribbon_graph.union(tet.with_tet_label())
+        self.glue_boundary_faces()
+
+    def pair_edge_mappings(self):
+        edge_mappings = []
+        paired =  []
+        for tet in self.tetrahedra:
+            edge_mappings.extend(tet.edge_mapping_on_cut_faces())
+        while edge_mappings:
+            mapping = edge_mappings.pop()
+            source, target = mapping.items()[0]
+            for other_mapping in edge_mappings:
+                if target in other_mapping:
+                    edge_mappings.remove(other_mapping)
+                    paired.append((mapping, other_mapping))
+
+        return paired
+
+    def glue_boundary_faces(self):
+        paired = self.pair_edge_mappings()
+        self.cycles = []
+        for mapping, other_mapping in paired:
+            for label in mapping:
+                assert other_mapping[mapping[label]] == label
+            label1, label2 = mapping.popitem()
+            #print(label1, label2)
+            self.cycles.append(self.ribbon_graph.face(label1))
+            self.ribbon_graph = self.ribbon_graph.glue_faces(label1,label2)
+        
+        
+
 def truncate_vertices(ribbon_graph):
     new_opposite = dict(ribbon_graph.opposite)
     next_inverse = ribbon_graph.next.inverse()
@@ -177,16 +343,33 @@ def truncate_vertices(ribbon_graph):
     for label in ribbon_graph.labels():
         next_label = ribbon_graph.next[label]
         previous_label = next_inverse[label]
-        new_next[label]= label+next_label
-        new_next[label+previous_label]= label
-        new_next[label+next_label]= label+previous_label
-        new_opposite[label+next_label]=next_label+label
-        new_opposite[next_label+label]=label+ next_label
+        new_next[label]= label+','+next_label
+        new_next[label+','+previous_label]= label
+        new_next[label+','+next_label]= label+','+previous_label
+        new_opposite[label+','+next_label]=next_label+','+label
+        new_opposite[next_label+','+label]=label+','+ next_label
 
     new_opposite  = Permutation(new_opposite)
     new_next = Permutation(new_next)
     return RibbonGraph(permutations=[new_opposite,new_next])
 
+
+def thicken_edges(ribbon_graph):
+    new_op = {}
+    for label in ribbon_graph.labels():
+        old_op_label = ribbon_graph.opposite[label]
+        new_op[label+'_0']=old_op_label+'_1'
+        new_op[label+'_1']=old_op_label+'_0'
+    new_next = {}
+    for label in ribbon_graph.labels():
+        old_next_label = ribbon_graph.next[label]
+        new_next[label+'_0']=label+'_1'
+        new_next[label+'_1']=old_next_label+'_0'
+
+    new_op  = Permutation(new_op)
+    new_next = Permutation(new_next)
+
+    return RibbonGraph(permutations=[new_op,new_next])
     
 def truncate_vertices_old(ribbon_graph):
     new_opposite = dict(ribbon_graph.opposite)
@@ -266,3 +449,22 @@ def doubled2():
             (2,0,0,0,2,1),
             (1,0,0,0,1,1)]
 
+import snappy
+def test_one_skeleton(limit):
+    i = 0
+    for M in snappy.OrientableClosedCensus:
+        if i > limit:
+            break
+        i += 1
+        MC = snappy.snap.t3mlite.Mcomplex(M)
+        S = TriangulationSkeleton(snappy.snap.t3mlite.Mcomplex(M))
+        ec = S.ribbon_graph.euler_characteristic()
+        cc = len(S.ribbon_graph.connected_components())
+        lc = len(S.ribbon_graph.lace_components())
+        
+#        print(lc == (sum(e.valence() for e in MC.Edges)+sum(1 for f in MC.Faces)))
+        print(lc == 4*len(MC.Edges)+2*len(MC.Faces))
+        print([len(v) == 4 for v in S.ribbon_graph.vertices()])
+        if (ec >= 0) or (ec%2 != 0) or (cc>1):
+            print(M)
+            
