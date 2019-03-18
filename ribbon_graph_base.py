@@ -269,6 +269,7 @@ class RibbonGraph(object):
             new_op[label] = label
         return RibbonGraph([new_op, self.next])
 
+    
     def disconnect_vertices(self, labels):
         """
         Given list of half edges, pull off the labels at each vertex.

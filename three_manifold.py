@@ -1,5 +1,6 @@
 from permutation import Permutation, Bijection
 from ribbon_graph_base import *
+from local_moves import contract_edge
 
 class Triangulation(object):
     def __init__(self, tetrahedra_ribbon_graph, glued_to, check_consistency = True):
@@ -307,6 +308,7 @@ class TriangulationSkeleton(object):
         for tet in self.tetrahedra:
             self.ribbon_graph = self.ribbon_graph.union(tet.with_tet_label())
         self.glue_boundary_faces()
+        self.classify_lace_components()
 
     def pair_edge_mappings(self):
         edge_mappings = []
@@ -334,8 +336,94 @@ class TriangulationSkeleton(object):
             self.cycles.append(self.ribbon_graph.face(label1))
             self.ribbon_graph = self.ribbon_graph.glue_faces(label1,label2)
         
-        
 
+    def classify_lace_components(self):
+        lace_components = set(map(tuple, self.ribbon_graph.lace_components()))
+        self.face_curves = []
+        self.edge_curves = []
+
+        while lace_components:
+            lc = lace_components.pop()
+            op_lc = None
+            for other_lc in lace_components:
+                if self.ribbon_graph.opposite[lc[0]] in other_lc:
+                    op_lc = other_lc
+                    break
+            lace_components.remove(op_lc)
+            is_face_curve = False
+            for cycle in self.cycles:
+                if (lc[0] in cycle) or (op_lc[0] in cycle):
+                    is_face_curve = True
+                    break
+            if is_face_curve:
+                self.face_curves.append( (lc, op_lc) )
+            else:
+                self.edge_curves.append( (lc, op_lc) )
+
+    
+        next_corner = self.ribbon_graph.next_corner()
+
+        edge_curve_set = set(self.edge_curves)
+        self.edge_curves = []
+        while edge_curve_set:
+            ec,ec_op = edge_curve_set.pop()
+            opposite_side_label1 = next_corner[next_corner[ec[0]]]
+            opposite_side_label2 = next_corner[next_corner[ec_op[0]]]
+
+            for other_ec, other_ec_op in edge_curve_set:                
+                if (opposite_side_label1 in other_ec) or (opposite_side_label1 in other_ec_op) or (opposite_side_label2 in other_ec) or (opposite_side_label2 in other_ec_op):
+                    edge_curve_set.remove((other_ec,other_ec_op))
+                    self.edge_curves.append((ec, ec_op, other_ec, other_ec_op))
+                    break
+
+    def print_data(self):
+        label_numbering = {}
+        R = self.ribbon_graph
+        labels = R.labels()
+        i = 1
+        X = R.euler_characteristic()
+        assert X % 2 == 0
+        
+        print('Genus: {}'.format((2-X)//2))
+        while labels:            
+            l = labels.pop()
+            o = R.opposite[l]
+            labels.remove(o)
+            label_numbering[l] = i
+            label_numbering[o] = -i
+            i+=1
+        print('vertices:')
+        for v in R.vertices():
+            print([label_numbering[l] for l in v])
+        print('faces:')
+        for f in R.faces():
+            print([label_numbering[l] for l in f])
+        print('face curves:')
+        for fc, op_fc in self.face_curves:
+            print([label_numbering[l] for l in fc])
+            print([label_numbering[l] for l in op_fc])
+            print('')
+        print('edge curves:')
+        for ec, op_ec, adj_ec, op_adj_ec in self.edge_curves:
+            print([label_numbering[l] for l in ec])
+            print([label_numbering[l] for l in op_ec])
+            print([label_numbering[l] for l in adj_ec])
+            print([label_numbering[l] for l in op_adj_ec])
+            print('')
+
+
+    def collapse_to_single_vertex(self):
+        found_non_loop = True
+        R = self.ribbon_graph.copy()
+        while found_non_loop:
+            found_non_loop = False
+            for label in R.labels():
+                if R.opposite[label] not in R.vertex(label):
+                    contract_edge(R, label)
+                    found_non_loop = True
+                    break
+        return R
+            
 def truncate_vertices(ribbon_graph):
     new_opposite = dict(ribbon_graph.opposite)
     next_inverse = ribbon_graph.next.inverse()
@@ -468,3 +556,10 @@ def test_one_skeleton(limit):
         if (ec >= 0) or (ec%2 != 0) or (cc>1):
             print(M)
             
+
+def filled_triangulation_and_triangulation_skeleton(snappy_string):
+    M = snappy.Manifold(snappy_string)
+    M.dehn_fill((1,0))
+    MF = M.filled_triangulation()
+    MC = snappy.snap.t3mlite.Mcomplex(MF)
+    return MC, TriangulationSkeleton(MC)
