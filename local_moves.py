@@ -9,8 +9,19 @@ def add_edge(ribbon_graph, label1, label2, new_label1, new_label2):
     ribbon_graph.next.insert_after(label1, new_label1)
     ribbon_graph.next.insert_after(label2, new_label2)
     ribbon_graph.opposite.add_cycle([new_label1, new_label2])
-    
 
+def double_edge(ribbon_graph, label, new_label1, new_label2):
+    op_label = ribbon_graph.opposite[label]
+    prev = ribbon_graph.vertex(op_label)[-1]
+    add_edge(ribbon_graph, label, prev, new_label1, new_label2)
+
+def split_vertex(ribbon_graph, label1, label2):    
+    ribbon_graph.next.split_cycle_at(label1, label2)
+
+def merge_vertices(ribbon_graph, label1, label2):    
+    ribbon_graph.next.merge_cycles_at(label1, label2)
+
+    
 def connect_edges(ribbon_graph, label1, label2):
     """
     

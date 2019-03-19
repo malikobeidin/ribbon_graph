@@ -1,5 +1,6 @@
 from permutation import Permutation, Bijection
 from ribbon_graph_base import *
+from cycle import *
 from local_moves import contract_edge
 
 class Triangulation(object):
@@ -423,7 +424,16 @@ class TriangulationSkeleton(object):
                     found_non_loop = True
                     break
         return R
-            
+
+
+    def cut_open(self):
+        R = self.ribbon_graph.copy()
+        for lc, op_lc in self.face_curves:
+            C = cycle_from_lace_component(R, lc[0])
+            print(C)
+            R = C.cut()
+        return R
+        
 def truncate_vertices(ribbon_graph):
     new_opposite = dict(ribbon_graph.opposite)
     next_inverse = ribbon_graph.next.inverse()

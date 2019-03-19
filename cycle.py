@@ -1,4 +1,6 @@
 import itertools
+from local_moves import *
+
 class Path(object):
     def __init__(self, ribbon_graph, start_label, labels = [], turn_degrees = []):
         self.ribbon_graph = ribbon_graph
@@ -259,16 +261,18 @@ class EmbeddedCycle(Path):
         return right_sides
 
     def with_previous_labels(self):
-        opposites = [self.ribbon_graph.opposite[l] for l in self.labels]
-        opposites.append(opposites.pop(0))
+        opposites = [self.ribbon_graph.opposite[l] for l in self.labels[:-1]]
+        last = opposites.pop()
+        opposites.insert(0, last)
         return zip(self.labels,opposites)
-
     
     def cut(self):
-        R = self.ribbon_graph
-        
-        for l, o in self.with_previous_labels():
-            R = R.vertex_merge_unmerge(l,self.ribbon_graph.next[o])
+        R = self.ribbon_graph.copy()
+        for l in self.labels[:-1]:
+            o = R.opposite[l]
+            double_edge(R, l, str(l)+'new', str(o)+'new')
+        for l, p in self.with_previous_labels():
+            split_vertex(R, l, str(p)+'new')
         return R
         
     def left_side(self):
@@ -344,3 +348,9 @@ class EmbeddedCycle(Path):
         cycle2 = splitting_path.reversed().concatenate(boundary2).complete_to_cycle()
 
         return cycle1, cycle2
+
+
+def cycle_from_lace_component(ribbon_graph, label):
+    lc = ribbon_graph.lace_component(label)
+    lc.append(lc[0])
+    return EmbeddedCycle(ribbon_graph, lc[0], lc)

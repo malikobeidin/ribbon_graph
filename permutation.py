@@ -181,7 +181,7 @@ class Permutation(Bijection):
         This function does not make a new Permutation; it alters self.
         new_label must not be already in the permutation.
         """
-        if new_label in self.labels():
+        if new_label in self:
             raise Exception("Cannot insert label because it is already used in the permutation")
         self[new_label] = self[previous_label]
         self[previous_label] = new_label
