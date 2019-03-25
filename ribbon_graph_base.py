@@ -121,6 +121,10 @@ class RibbonGraph(object):
         new_op = self.opposite.restricted_to(comp)
         new_next = self.next.restricted_to(comp)
         return RibbonGraph([new_op, new_next])
+
+    def connected_components_as_ribbon_graphs(self):
+        label_choices = [c.pop() for c in self.connected_components()]
+        return [self.restricted_to_connected_component_containing(l) for l in label_choices]
     
     def _relabeling_bijection(self, label):
         i = 1

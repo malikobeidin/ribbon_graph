@@ -300,14 +300,27 @@ class Tetrahedron(object):
         next = self.cut_ribbon_graph.next
         new_next = Permutation({si+label : si+next[label] for label in next})
         return RibbonGraph([new_op,new_next])
+
+    def directed_edge_to_vertex_corner(self, directed_edge):
+        l01 = '{}_0,{}_1'.format(directed_edge, directed_edge)
+        return self.cut_ribbon_graph.next_corner()[l01],self.cut_ribbon_graph.next[l01]
+    
+    def add_normal_curve(self, directed_edge, num_crossings):
+        l1, l2 = self.directed_edge_to_vertex_corner(directed_edge)
+        
+        
     
 class TriangulationSkeleton(object):
-    def __init__(self, mcomplex):
+    def __init__(self, mcomplex, meridian_info=None):
         self.tetrahedra = [Tetrahedron(tet) for tet in mcomplex.Tetrahedra]
 
         self.ribbon_graph = RibbonGraph([Permutation(), Permutation()])
         for tet in self.tetrahedra:
             self.ribbon_graph = self.ribbon_graph.union(tet.with_tet_label())
+
+        if meridian_info:
+            self.add_meridian()
+
         self.glue_boundary_faces()
         self.classify_lace_components()
 
@@ -359,24 +372,26 @@ class TriangulationSkeleton(object):
             if is_face_curve:
                 self.face_curves.append( (lc, op_lc) )
             else:
-                self.edge_curves.append( (lc, op_lc) )
+                if len(self.ribbon_graph.face(lc[0]))==4:
+                    self.edge_curves.append( (lc, op_lc) )
+                else:
+                    self.edge_curves.append( (op_lc, lc) )
 
-    
-        next_corner = self.ribbon_graph.next_corner()
 
+        nc_squared = self.ribbon_graph.next_corner()*self.ribbon_graph.next_corner()
+        
         edge_curve_set = set(self.edge_curves)
-        self.edge_curves = []
+        self.opposite_edge_curves = {}
         while edge_curve_set:
-            ec,ec_op = edge_curve_set.pop()
-            opposite_side_label1 = next_corner[next_corner[ec[0]]]
-            opposite_side_label2 = next_corner[next_corner[ec_op[0]]]
-
-            for other_ec, other_ec_op in edge_curve_set:                
-                if (opposite_side_label1 in other_ec) or (opposite_side_label1 in other_ec_op) or (opposite_side_label2 in other_ec) or (opposite_side_label2 in other_ec_op):
-                    edge_curve_set.remove((other_ec,other_ec_op))
-                    self.edge_curves.append((ec, ec_op, other_ec, other_ec_op))
+            ec, ec_op = edge_curve_set.pop()
+            l = nc_squared[ec[0]]
+            ec_opposite_comp = None
+            for other_ec, other_ec_op in edge_curve_set:
+                if l in other_ec:
+                    ec_opposite_comp = other_ec
                     break
-
+            self.opposite_edge_curves[ec] = ec_opposite_comp
+    
     def print_data(self):
         label_numbering = {}
         R = self.ribbon_graph
@@ -413,26 +428,31 @@ class TriangulationSkeleton(object):
             print('')
 
 
-    def collapse_to_single_vertex(self):
-        found_non_loop = True
-        R = self.ribbon_graph.copy()
-        while found_non_loop:
-            found_non_loop = False
-            for label in R.labels():
-                if R.opposite[label] not in R.vertex(label):
-                    contract_edge(R, label)
-                    found_non_loop = True
-                    break
-        return R
 
 
     def cut_open(self):
         R = self.ribbon_graph.copy()
-        for lc, op_lc in self.face_curves:
+        for lc, op_lc in self.edge_curves:
             C = cycle_from_lace_component(R, lc[0])
             print(C)
             R = C.cut()
         return R
+
+
+    def with_edges_contracted(self):
+        R = self.ribbon_graph.copy()
+        for ec in self.opposite_edge_curves.values():
+            if ec:
+                print(ec)
+                for l in ec:
+                    delete_edge(R,l)
+        return R
+        
+    def lace_component_intersection_graph(self):
+        new_labels
+
+    def add_meridian(self):
+        pass
         
 def truncate_vertices(ribbon_graph):
     new_opposite = dict(ribbon_graph.opposite)
@@ -573,3 +593,77 @@ def filled_triangulation_and_triangulation_skeleton(snappy_string):
     MF = M.filled_triangulation()
     MC = snappy.snap.t3mlite.Mcomplex(MF)
     return MC, TriangulationSkeleton(MC)
+
+def triangulation_and_triangulation_skeleton(snappy_string):
+    M = snappy.Manifold(snappy_string)
+    
+#    M.dehn_fill((1,0))
+#    MF = M.filled_triangulation()
+    MC = snappy.snap.t3mlite.Mcomplex(M)
+    return MC, TriangulationSkeleton(MC)
+
+
+def peripheral_curve_data(snappy_manifold):
+    indices, curve_data = snappy_manifold._get_cusp_indices_and_peripheral_curve_data()
+    meridians = []
+    longitudes = []
+    num_tets = snappy_manifold.num_tetrahedra()
+    for tet_number in range(num_tets):
+        meridian_row = curve_data[tet_number*4]
+
+        longitude_row = curve_data[tet_number*4+2]
+        print(meridian_row)
+        print(longitude_row)
+        for i in range(4):
+            for j in range(4):
+                if meridian_row[4*i+j] != 0:
+                    meridians.append( (tet_number,i,j,meridian_row[4*i+j]) )
+                if longitude_row[4*i+j] != 0:
+                    longitudes.append( (tet_number,i,j,longitude_row[4*i+j]) )
+    return meridians, longitudes
+
+def collapse_to_single_vertex(ribbon_graph):
+    found_non_loop = True
+    R = ribbon_graph.copy()
+    while found_non_loop:
+        found_non_loop = False
+        for label in R.labels():
+            if R.opposite[label] not in R.vertex(label):
+                contract_edge(R, label)
+                found_non_loop = True
+                break
+    return R
+
+
+def spanning_tree(ribbon_graph, start_label):
+    half_edges = ribbon_graph._vertex_search(start_label)
+"""
+    def _get_cusp_indices_and_peripheral_curve_data(self):
+        cdef int i, j, k, v, f
+        cdef TriangulationData* data
+        triangulation_to_data(self.c_triangulation, &data)
+
+        result_cusp_indices = []
+        for i from 0 <= i < self.num_tetrahedra():
+          row = []
+          for v from 0 <= v < 4:
+            row.append(
+               data.tetrahedron_data[i].cusp_index[v]
+               )
+          result_cusp_indices.append(row)
+
+        result_curves = []
+        for i from 0 <= i < self.num_tetrahedra():
+          for j from 0 <= j < 2:       # meridian, longitude
+            for k from 0 <= k < 2:     # righthanded, lefthanded
+              row = []
+              for v from 0 <= v < 4:
+                for f from 0 <= f < 4:
+                  row.append(
+                     data.tetrahedron_data[i].curve[j][k][v][f]
+                     )
+              result_curves.append(row)
+
+        free_triangulation_data(data)
+        return (result_cusp_indices, result_curves)
+"""

@@ -1,5 +1,17 @@
 
     
+def add_vertex_on_edge(ribbon_graph, label, new_label_op, new_label_next_corner):
+    """
+    Add a new valence 2 vertex on the edge given by label.
+    """
+    op_label = ribbon_graph.opposite[label]
+    cut_edge(ribbon_graph, label)
+    ribbon_graph.next.add_cycle([new_label1, new_label2])
+    ribbon_graph.opposite[new_label1] = new_label1
+    ribbon_graph.opposite[new_label2] = new_label2
+    connect_edges(ribbon_graph, new_label1, label)
+    connect_edges(ribbon_graph, new_label2, op_label)
+
 
 def add_edge(ribbon_graph, label1, label2, new_label1, new_label2):
     """
@@ -50,6 +62,10 @@ def delete_edge(ribbon_graph, label):
     ribbon_graph.next.remove_fixed_point(label)
     ribbon_graph.next.remove_fixed_point(op_label)
 
+def cross_face(ribbon_graph, label1, label2, new_label1_op, new_label1_next_corner, new_label2_op, new_label2_next_corner):
+    assert label2 in ribbon_graph.face(label1)
+    add_vertex_on_edge(ribbon_graph, label1, new_label1_op)
+    pass #fix
 
 def contract_edge(ribbon_graph, label):
     """
